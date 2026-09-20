@@ -1,5 +1,5 @@
 {
   "postingLabel": "Akamai — Senior Enterprise Security Architect",
-  "summary": "Senior cloud security engineer with 8+ years designing secure-by-default cloud architectures and advising on enterprise security posture. Applied Zero Trust principles to new product designs across GCP and AWS at Elate LLC, and currently leads security architecture decisions embedded into CI/CD at OGA SABI Ltd, bridging engineering, compliance, and business stakeholders.",
-  "roleOrder": ["elate", "oga", "grc", "soft", "springboard", "hardcore", "rewired"]
+  "summary": "Senior cloud security engineer with 8+ years designing secure-by-default cloud architectures and advising on enterprise security posture. Applied Zero Trust principles to new product designs across GCP and AWS at Elate LLC, and currently leads security architecture decisions embedded into CI/CD at Vigilsec, bridging engineering, compliance, and business stakeholders.",
+  "roleOrder": ["elate", "vigilsec", "soft", "springboard", "hardcore", "rewired"]
 }

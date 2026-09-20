@@ -17,27 +17,25 @@ const CONTENT_W = MARGIN_R - MARGIN_L;
 // Source of truth: C:\work\sebastine.com\cv.sebastine\Sebastine_Nnanemere_MASTER_CV.pdf
 // Keep this in sync by hand if the master CV changes (new role, new cert, etc.)
 export const ROLES = {
-  oga: {
-    header: 'Senior Cloud Security Engineer | OGA SABI Ltd',
-    dates: 'Jun 2024 \u2013 Present',
+  // OGA SABI Ltd (Jun 2024-) and the independent GRC Advisor work (2024-)
+  // were consolidated and rebranded under Sebastine's own business, Vigilsec,
+  // as of Jan 2025 - same continuous work, one entry, per his 2026-09-20
+  // confirmation. Do not re-split these.
+  vigilsec: {
+    header: 'Senior Cloud Security Engineer & GRC Advisor | Vigilsec, Messina, Italy (vigilsec.it)',
+    dates: 'Jan 2025 \u2013 Present',
     bullets: [
       'Triage security findings from Security Hub, GuardDuty, and Config, correlating data to reduce false positives and driving remediation directly with engineering teams.',
       'Embed security requirements and controls into CI/CD pipelines via reusable Terraform modules and policy gates, enforcing secure-by-default standards at build and deploy time.',
       'Automate compliance monitoring and audit evidence generation (Python/Bash, n8n) for SOC 2 and ISO 27001, including recurring metrics dashboards and executive-ready reporting.',
       'Act as technical advisor and point of contact between engineering, compliance, and business stakeholders, translating regulatory requirements into practical engineering guidance.',
       'Maintain documentation and runbooks functioning as a living knowledge base, reducing repeat escalations for recurring technical and compliance questions.',
-    ],
-  },
-  grc: {
-    header: 'GRC Advisor (Independent, via Upwork) | Self-employed',
-    dates: '2024 \u2013 Present',
-    bullets: [
-      'Deliver GRC advisory engagements for startups and small businesses, including ISO 27001 gap assessments, using ciso.ikenga.ng \u2014 a self-built platform combining policy generation, risk assessment, and compliance tracking for non-technical stakeholders.',
+      'Deliver independent GRC advisory engagements for startups and small businesses, including ISO 27001 gap assessments, using ciso.ikenga.ng \u2014 a self-built platform combining policy generation, risk assessment, and compliance tracking for non-technical stakeholders.',
       'Own a queue of incoming client requests end-to-end across multiple accounts simultaneously, managing competing deadlines and varying levels of technical sophistication, and knowing precisely when to loop in additional expertise rather than guessing.',
     ],
   },
   elate: {
-    header: 'Solutions Engineer \u2014 Cloud Security & IAM | Elate LLC',
+    header: 'Solutions Engineer \u2014 Cloud Security & IAM | Elate LLC (elate.xyz)',
     dates: '2024',
     bullets: [
       'Designed secure-by-default cloud architectures across GCP and AWS, applying Zero Trust principles to new product designs.',
@@ -45,7 +43,7 @@ export const ROLES = {
     ],
   },
   soft: {
-    header: 'Cloud Security Specialist | Soft Solutions S.R.L',
+    header: 'Cloud Security Specialist | Soft Solutions S.R.L (softsolutions.it)',
     dates: '2023 \u2013 2024',
     bullets: [
       'Built automated vulnerability scanning pipelines integrated into a centralized security metrics dashboard, supporting vulnerability management and remediation across products.',
@@ -54,7 +52,7 @@ export const ROLES = {
     ],
   },
   springboard: {
-    header: 'Cloud Security Mentor & SecOps Practitioner | Springboard',
+    header: 'Cloud Security Mentor & SecOps Practitioner | Springboard (springboard.com)',
     dates: '2023 \u2013 2025',
     bullets: [
       'Trained and mentored 100+ engineers on cloud security architecture, Kubernetes security, and CI/CD security integration in an international, English-speaking cohort.',
@@ -62,7 +60,7 @@ export const ROLES = {
     ],
   },
   hardcore: {
-    header: 'Security Engineer \u2014 Infrastructure & Cloud | Hardcore Biometric Systems',
+    header: 'Security Engineer \u2014 Infrastructure & Cloud | Hardcore Biometric Systems (hardcorebiometric.com)',
     dates: '2020 \u2013 2023',
     bullets: [
       'Hardened Kubernetes clusters (EKS): RBAC, Network Policies, Pod Security Admission, and image scanning in CI/CD \u2014 ensuring secure-by-default container deployments at scale.',
@@ -72,7 +70,7 @@ export const ROLES = {
     ],
   },
   rewired: {
-    header: 'IT Security Engineer | Rewired',
+    header: 'IT Security Engineer | Rewired (rewired.ng)',
     dates: '2017 \u2013 2020',
     bullets: [
       'Implemented network segmentation and endpoint hardening across distributed infrastructure, reducing breach incidents by 50%.',
@@ -197,11 +195,21 @@ export async function generate(config, outPath) {
   drawSectionHeader('PROFESSIONAL EXPERIENCE');
   for (const roleKey of config.roleOrder) {
     const role = ROLES[roleKey];
-    newPageIfNeeded(16);
-    page.drawText(role.header, { x: MARGIN_L, y, size: 10.5, font: bold });
+    newPageIfNeeded(28);
+    const headerWidth = bold.widthOfTextAtSize(role.header, 10.5);
     const datesWidth = italic.widthOfTextAtSize(role.dates, 10);
-    page.drawText(role.dates, { x: MARGIN_R - datesWidth, y, size: 10, font: italic });
-    y -= 14;
+    page.drawText(role.header, { x: MARGIN_L, y, size: 10.5, font: bold });
+    if (headerWidth + 10 + datesWidth <= CONTENT_W) {
+      // Fits on one line: dates right-aligned beside the header.
+      page.drawText(role.dates, { x: MARGIN_R - datesWidth, y, size: 10, font: italic });
+      y -= 14;
+    } else {
+      // Header (with its company-domain suffix) is too long to share the
+      // line with the dates - drop the dates to their own right-aligned line.
+      y -= 13;
+      page.drawText(role.dates, { x: MARGIN_R - datesWidth, y, size: 10, font: italic });
+      y -= 14;
+    }
     for (const bullet of role.bullets) drawBullet(bullet, regular, 9.5, 12.5);
     y -= 6;
   }
