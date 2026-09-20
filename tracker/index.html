@@ -1,0 +1,318 @@
+<title>Jobberman Tracker</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --border: #e2e5ea;
+    --ink: #14181f;
+    --ink-dim: #5b6472;
+    --ink-faint: #8a93a1;
+    --accent: #0e8f7a;
+    --accent-ink: #ffffff;
+    --accent-2: #4a5ed1;
+    --good: #0e8f5a;
+    --good-bg: #e6f6ef;
+    --warn: #a5720b;
+    --warn-bg: #fbf1de;
+    --bad: #b23b3b;
+    --bad-bg: #fbe9e9;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b0f17;
+      --surface: #121826;
+      --border: #232c3d;
+      --ink: #e8ecf3;
+      --ink-dim: #a3aebd;
+      --ink-faint: #6c7686;
+      --accent: #22e6c1;
+      --accent-ink: #06231d;
+      --accent-2: #7c8bff;
+      --good: #22e6c1;
+      --good-bg: #0f2b26;
+      --warn: #f0b955;
+      --warn-bg: #332510;
+      --bad: #ff7a7a;
+      --bad-bg: #33191b;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b0f17;
+    --surface: #121826;
+    --border: #232c3d;
+    --ink: #e8ecf3;
+    --ink-dim: #a3aebd;
+    --ink-faint: #6c7686;
+    --accent: #22e6c1;
+    --accent-ink: #06231d;
+    --accent-2: #7c8bff;
+    --good: #22e6c1;
+    --good-bg: #0f2b26;
+    --warn: #f0b955;
+    --warn-bg: #332510;
+    --bad: #ff7a7a;
+    --bad-bg: #33191b;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    margin: 0;
+    padding-block: 28px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding-inline: 20px; }
+
+  header.top { display: flex; flex-direction: column; gap: 4px; margin-bottom: 22px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600;
+  }
+  h1 { font-size: 26px; margin: 2px 0 4px; letter-spacing: -0.01em; text-wrap: balance; }
+  .sub { color: var(--ink-dim); font-size: 14px; max-width: 62ch; }
+
+  .stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 10px; margin: 20px 0 22px;
+  }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .stat .n { font-family: var(--mono); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 11px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+
+  .controls {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; align-items: center;
+  }
+  .controls select, .controls input {
+    background: var(--surface); border: 1px solid var(--border); color: var(--ink);
+    border-radius: 8px; padding: 7px 10px; font-size: 13px; font-family: var(--sans);
+  }
+  .controls input { flex: 1; min-width: 140px; }
+  .controls select:focus, .controls input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .card-id { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .company { font-weight: 600; font-size: 15px; }
+  .title { color: var(--ink-dim); font-size: 14px; }
+  .meta { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); margin-top: 3px; }
+
+  .score-pill {
+    font-family: var(--mono); font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums;
+    padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+  }
+  .decision-apply { color: var(--good); background: var(--good-bg); }
+  .decision-review { color: var(--warn); background: var(--warn-bg); }
+  .decision-skip { color: var(--bad); background: var(--bad-bg); }
+
+  .reason { font-size: 13.5px; color: var(--ink); margin: 10px 0 8px; line-height: 1.5; }
+  .tailored { font-size: 13px; color: var(--ink-dim); line-height: 1.5; margin-bottom: 10px; padding: 8px 10px; background: var(--bg); border-radius: 8px; border: 1px dashed var(--border); }
+  .tailored b { color: var(--ink); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+  .chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink-dim); }
+  .chip.match { border-color: var(--good); color: var(--good); }
+  .chip.gap { border-color: var(--bad); color: var(--bad); }
+
+  .card-bottom { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .card-bottom a {
+    color: var(--accent-2); text-decoration: none; font-size: 13px; font-weight: 600;
+  }
+  .card-bottom a:hover { text-decoration: underline; }
+
+  select.status {
+    font-family: var(--mono); font-size: 11.5px; padding: 5px 8px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--ink);
+  }
+  .confidence { font-size: 11px; color: var(--ink-faint); font-family: var(--mono); }
+
+  .empty { text-align: center; padding: 60px 20px; color: var(--ink-faint); }
+  footer { margin-top: 26px; font-size: 11.5px; color: var(--ink-faint); text-align: center; }
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">Jobberman &middot; Sebastine Nnanemere</span>
+    <h1>Job application tracker</h1>
+    <p class="sub">Postings discovered every weekday, screened against the cloud security / GRC / IAM profile, and queued here for review. Nothing gets submitted automatically &mdash; change the status once you've applied.</p>
+  </header>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="controls">
+    <select id="filterDecision">
+      <option value="">All decisions</option>
+      <option value="apply">Apply</option>
+      <option value="review">Review</option>
+    </select>
+    <select id="filterStatus">
+      <option value="">All statuses</option>
+      <option value="Pending Review">Pending Review</option>
+      <option value="Approved to Apply">Approved to Apply</option>
+      <option value="Applied">Applied</option>
+      <option value="Interview">Interview</option>
+      <option value="Rejected">Rejected</option>
+      <option value="Not Pursuing">Not Pursuing</option>
+    </select>
+    <input id="search" type="text" placeholder="Search company or title&hellip;">
+  </div>
+
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty" hidden>No postings match these filters yet.</div>
+
+  <footer>Data lives in this artifact's own store &mdash; updates you make here (status) are saved live. A snapshot exports to Google Sheets weekly.</footer>
+</div>
+
+<script>
+(function () {
+  var STATUS_OPTIONS = ['Pending Review', 'Approved to Apply', 'Applied', 'Interview', 'Rejected', 'Not Pursuing'];
+  var allDocs = [];
+  var filters = { decision: '', status: '', q: '' };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    try { return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
+    catch (e) { return iso; }
+  }
+
+  function renderStats(docs) {
+    var total = docs.length;
+    var apply = docs.filter(function (d) { return d.decision === 'apply'; }).length;
+    var review = docs.filter(function (d) { return d.decision === 'review'; }).length;
+    var applied = docs.filter(function (d) { return d.status === 'Applied' || d.status === 'Interview'; }).length;
+    var avg = total ? Math.round(docs.reduce(function (s, d) { return s + (d.score || 0); }, 0) / total) : 0;
+    var stats = [
+      { n: total, l: 'Tracked' },
+      { n: apply, l: 'Apply tier' },
+      { n: review, l: 'Review tier' },
+      { n: applied, l: 'Applied / interview' },
+      { n: avg, l: 'Avg score' }
+    ];
+    document.getElementById('stats').innerHTML = stats.map(function (s) {
+      return '<div class="stat"><div class="n">' + esc(s.n) + '</div><div class="l">' + esc(s.l) + '</div></div>';
+    }).join('');
+  }
+
+  function matchesFilters(d) {
+    if (filters.decision && d.decision !== filters.decision) return false;
+    if (filters.status && d.status !== filters.status) return false;
+    if (filters.q) {
+      var hay = ((d.company || '') + ' ' + (d.title || '')).toLowerCase();
+      if (hay.indexOf(filters.q.toLowerCase()) === -1) return false;
+    }
+    return true;
+  }
+
+  function statusOptionsHtml(current) {
+    return STATUS_OPTIONS.map(function (s) {
+      return '<option value="' + esc(s) + '"' + (s === current ? ' selected' : '') + '>' + esc(s) + '</option>';
+    }).join('');
+  }
+
+  function chipHtml(items, cls) {
+    return (items || []).map(function (i) { return '<span class="chip ' + cls + '">' + esc(i) + '</span>'; }).join('');
+  }
+
+  function cardHtml(d) {
+    var decisionCls = d.decision === 'apply' ? 'decision-apply' : d.decision === 'review' ? 'decision-review' : 'decision-skip';
+    return (
+      '<div class="card" data-id="' + esc(d.id) + '">' +
+        '<div class="card-top">' +
+          '<div class="card-id">' +
+            '<span class="company">' + esc(d.company) + '</span>' +
+            '<span class="title">' + esc(d.title) + '</span>' +
+          '</div>' +
+          '<span class="score-pill ' + decisionCls + '">' + esc(d.score) + ' &middot; ' + esc(d.decision) + '</span>' +
+        '</div>' +
+        '<div class="meta">' + esc(d.location || 'location unclear') + ' &nbsp;&middot;&nbsp; found ' + esc(fmtDate(d.dateFound)) +
+          (d.salary ? ' &nbsp;&middot;&nbsp; ' + esc(d.salary) : '') +
+          ' &nbsp;&middot;&nbsp; <span class="confidence">confidence: ' + esc(d.confidence || 'n/a') + '</span>' +
+        '</div>' +
+        '<p class="reason">' + esc(d.oneLineReason) + '</p>' +
+        (d.tailoredSummary ? '<div class="tailored"><b>Tailoring note:</b> ' + esc(d.tailoredSummary) + '</div>' : '') +
+        '<div class="chips">' + chipHtml(d.matchedRequirements, 'match') + chipHtml(d.gaps, 'gap') + '</div>' +
+        '<div class="card-bottom">' +
+          '<a href="' + esc(d.sourceUrl || '#') + '" target="_blank" rel="noopener">View posting &rarr;</a>' +
+          '<select class="status" data-id="' + esc(d.id) + '">' + statusOptionsHtml(d.status) + '</select>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function render() {
+    var filtered = allDocs.filter(matchesFilters);
+    renderStats(allDocs);
+    var list = document.getElementById('list');
+    var empty = document.getElementById('empty');
+    if (!filtered.length) {
+      list.innerHTML = '';
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+    list.innerHTML = filtered
+      .slice()
+      .sort(function (a, b) { return (b.score || 0) - (a.score || 0); })
+      .map(cardHtml)
+      .join('');
+  }
+
+  document.getElementById('filterDecision').addEventListener('change', function (e) {
+    filters.decision = e.target.value; render();
+  });
+  document.getElementById('filterStatus').addEventListener('change', function (e) {
+    filters.status = e.target.value; render();
+  });
+  document.getElementById('search').addEventListener('input', function (e) {
+    filters.q = e.target.value; render();
+  });
+
+  var dbNs = null;
+  document.getElementById('list').addEventListener('change', function (e) {
+    var t = e.target;
+    if (!t.classList.contains('status')) return;
+    var id = t.getAttribute('data-id');
+    var doc = allDocs.find(function (d) { return d.id === id; });
+    if (doc) doc.status = t.value;
+    if (dbNs) {
+      dbNs.doc('postings/' + id).update({ status: t.value, statusChangedAt: new Date().toISOString() }).catch(function () {});
+    }
+  });
+
+  function boot() {
+    if (!(window.claude && window.claude.use)) { render(); return; }
+    window.claude.use('db').then(function (db) {
+      if (!db) { render(); return; }
+      dbNs = db;
+      db.collection('postings').orderBy('dateFound', 'desc').limit(200).onSnapshot(function (snap) {
+        allDocs = snap.docs.map(function (s) {
+          var data = s.data() || {};
+          data.id = s.id;
+          return data;
+        });
+        render();
+      }, function () { render(); });
+    }).catch(function () { render(); });
+  }
+
+  boot();
+})();
+</script>
