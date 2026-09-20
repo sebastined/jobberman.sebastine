@@ -147,6 +147,14 @@
   .save-error { font-size: 10.5px; color: var(--bad); max-width: 180px; text-align: right; }
   .save-ok { font-size: 10.5px; color: var(--good); }
   select.status:disabled { opacity: 0.6; }
+
+  .cv-btn {
+    align-self: flex-start; margin-top: 10px; font-family: var(--sans); font-size: 13px; font-weight: 600;
+    background: var(--accent); color: var(--accent-ink); border: none; border-radius: 8px;
+    padding: 8px 14px; cursor: pointer;
+  }
+  .cv-btn:disabled { opacity: 0.6; cursor: default; }
+  .cv-btn:hover:not(:disabled) { filter: brightness(1.05); }
 </style>
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
@@ -156,6 +164,8 @@
     <span class="eyebrow">Jobberman &middot; Sebastine Nnanemere</span>
     <h1>Job application tracker</h1>
     <p class="sub">Postings discovered every weekday, screened against the cloud security / GRC / IAM profile, and queued here for review. Nothing gets submitted automatically &mdash; change the status once you've applied.</p>
+    <button id="downloadCv" class="cv-btn">Download master CV (PDF)</button>
+    <span class="save-error" id="downloadCvError" hidden></span>
   </header>
 
   <div class="banner" id="dbBanner" hidden></div>
@@ -368,6 +378,37 @@
       );
     });
   }
+
+  var CV_ASSET_URL = '/_blob/8b835f0eebdb2d5fe07ae723b16d4bf8';
+  var CV_FILENAME = 'Sebastine_Nnanemere_MASTER_CV.pdf';
+
+  document.getElementById('downloadCv').addEventListener('click', function () {
+    var btn = document.getElementById('downloadCv');
+    var errEl = document.getElementById('downloadCvError');
+    errEl.hidden = true;
+    if (!(window.claude && window.claude.use)) {
+      errEl.textContent = 'Downloads aren’t available in this view.';
+      errEl.hidden = false;
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Preparing…';
+    window.claude.use('downloads').then(function (downloads) {
+      if (!downloads) { throw { code: 'unavailable' }; }
+      return fetch(CV_ASSET_URL)
+        .then(function (res) { return res.blob(); })
+        .then(function (blob) { return downloads.save({ filename: CV_FILENAME, data: blob }); });
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = 'Download master CV (PDF)';
+    }).catch(function (err) {
+      btn.disabled = false;
+      btn.textContent = 'Download master CV (PDF)';
+      var code = (err && err.code) || 'unknown';
+      errEl.textContent = code === 'declined' ? 'Download cancelled.' : 'Couldn’t download (' + code + ') — try again.';
+      errEl.hidden = false;
+    });
+  });
 
   function boot() {
     if (!(window.claude && window.claude.use)) { dbReady = 'unavailable'; render(); return; }
