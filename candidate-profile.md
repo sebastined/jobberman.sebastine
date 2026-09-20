@@ -18,7 +18,7 @@ Source of truth for facts: `C:\work\sebastine.com\cv.sebastine\Sebastine_Nnaneme
 
 ## Hard filters (any one → decision = "skip")
 
-1. Requires or strongly prefers fluency in a language the candidate lacks (Polish, Ukrainian, Russian, German, French, or any other, unless marked optional).
+1. **The posting must require only English.** Any required language beyond English — Italian included (candidate's Italian is basic, not professional) — fails this filter. A language mentioned only as a nice-to-have/plus, not required, does not fail it.
 2. Remote eligibility fails: role restricted to countries/regions excluding Italy, or requires residing in a specific non-Italy country.
 3. Requires citizenship, security clearance, or work authorization the candidate doesn't have (i.e. anywhere outside Italy without sponsorship).
 4. Not in the target role families (e.g. pure software development with no security scope, sales, general IT support).
