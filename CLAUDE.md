@@ -26,9 +26,13 @@ No remote configured yet — local git repo only, matching the per-project conve
 
 ## The scheduled run
 
-Set up via the `/schedule` skill, **every weekday**. The routine's prompt is self-contained (embeds the full candidate profile + rubric + tracker URL + instructions) rather than reading `candidate-profile.md` off disk, because a cloud-scheduled agent run may not have this local checkout available.
+Routine ID `trig_01VcyBPCT3n8bbbqUtWA54Xm` ("Jobberman - weekday job search and screen"), created 2026-09-20 via the `/schedule` skill / `RemoteTrigger` API. Runs `0 6 * * 1-5` (6am UTC = 8am Europe/Rome on weekdays; will read as 7am local once CET/winter time resumes — cron is fixed UTC and doesn't auto-shift with DST, revisit if that drift matters). Attached MCP connector: Google-Drive (for the Friday export).
 
-**If `candidate-profile.md` changes (new cert passed, salary floor changes, location changes, etc.), the scheduled routine's prompt must be updated to match — editing this file alone does not update the live schedule.** Use `/schedule` to view/edit the routine.
+The routine's prompt is **fully self-contained** — it embeds the candidate profile, hard filters, scoring rubric, and condensed real experience directly, rather than reading `candidate-profile.md` off disk, because **this account's GitHub isn't connected to Claude Code cloud routines yet** (`sources: [{git_repository: ...}]` was tried first and rejected with `Connect your GitHub account before saving a routine that uses a GitHub repository`). The repo is pushed to `https://github.com/sebastined/jobberman.sebastine` regardless, for local reference and version history.
+
+**If `candidate-profile.md` changes (new cert passed, salary floor changes, location changes, etc.), the routine's embedded prompt must be updated to match — editing this file alone does not update the live schedule.** Use `/schedule` (or `RemoteTrigger` with `action: update`, `trigger_id: trig_01VcyBPCT3n8bbbqUtWA54Xm`) to edit it.
+
+**If GitHub gets connected later** (https://claude.ai/customize/connectors), the routine can be simplified: swap the embedded profile block for `sources: [{git_repository: {url: "https://github.com/sebastined/jobberman.sebastine"}}]` plus an instruction to read `candidate-profile.md` from the clone — then this file becomes the actual single source of truth instead of a copy that has to be kept in sync by hand.
 
 ## Known gaps (v1, deliberate)
 
