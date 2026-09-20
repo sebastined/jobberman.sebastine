@@ -329,7 +329,11 @@
     }
 
     t.disabled = true;
-    dbNs.doc('postings/' + id).update({ status: t.value, statusChangedAt: new Date().toISOString() })
+    var newValue = t.value;
+    withTimeout(
+      dbNs.doc('postings/' + id).update({ status: newValue, statusChangedAt: new Date().toISOString() }),
+      8000
+    )
       .then(function () {
         t.disabled = false;
       })
@@ -337,10 +341,33 @@
         t.disabled = false;
         t.value = prevStatus;
         if (doc) doc.status = prevStatus;
-        errEl.textContent = 'Save failed (' + ((err && err.code) || 'unknown error') + ') — try again.';
+        var code = (err && err.code) || 'unknown';
+        errEl.textContent = code === 'timeout'
+          ? 'No response after 8s — the write may still be pending. Wait a moment, then try again.'
+          : 'Save failed (' + code + ') — try again.';
         errEl.hidden = false;
       });
   });
+
+  // The db capability's own promises can, in practice, sometimes never settle
+  // (no observed reject, no observed resolve) rather than reject promptly on a
+  // stalled connection. Race every write against a local timeout so the UI
+  // always reaches a visible end state instead of leaving a control disabled
+  // forever with no explanation.
+  function withTimeout(promise, ms) {
+    return new Promise(function (resolve, reject) {
+      var settled = false;
+      var timer = setTimeout(function () {
+        if (settled) return;
+        settled = true;
+        reject({ code: 'timeout', message: 'timed out after ' + ms + 'ms' });
+      }, ms);
+      promise.then(
+        function (v) { if (settled) return; settled = true; clearTimeout(timer); resolve(v); },
+        function (e) { if (settled) return; settled = true; clearTimeout(timer); reject(e); }
+      );
+    });
+  }
 
   function boot() {
     if (!(window.claude && window.claude.use)) { dbReady = 'unavailable'; render(); return; }
