@@ -11,7 +11,13 @@ A semi-automated job-search pipeline for Sebastine Nnanemere (Senior Cloud Secur
 
 ## How it works
 
-1. **Discover** — free, no-key job-board APIs (Remotive, Arbeitnow, RemoteOK) plus WebSearch for broader coverage. Any posting hosted on Greenhouse, Lever, or Ashby gets its full text pulled from that ATS's public JSON API (`boards-api.greenhouse.io`, `api.lever.co/v0/postings/<company>`, `api.ashbyhq.com/posting-api/job-board/<company>`) rather than scraped HTML — much more reliable than fetching the rendered page, since those are client-side-rendered SPAs that return no content to a plain fetch.
+1. **Discover** — free, no-key job-board APIs (Remotive, Arbeitnow, RemoteOK) plus WebSearch. **WebSearch queries should target ATS platforms directly with `site:` filters** (e.g. `site:job-boards.greenhouse.io OR site:boards.greenhouse.io "cloud security" OR GRC OR IAM remote Italy`) rather than plain keyword search — confirmed 2026-09-20 to surface substantially more relevant postings. Cover at least: Greenhouse (`job-boards.greenhouse.io`, `boards.greenhouse.io`), Lever (`jobs.lever.co`), Ashby (`jobs.ashbyhq.com`), SmartRecruiters (`jobs.smartrecruiters.com`), and the common EU-startup ATS platforms Personio (`*.jobs.personio.com`), Teamtailor (`jobs.teamtailor.com`), Recruitee (`jobs.recruitee.com`).
+   Any posting hosted on Greenhouse, Lever, Ashby, or **SmartRecruiters** gets its full text pulled from that ATS's public JSON API rather than the scraped page — much more reliable, since Greenhouse/Ashby/SmartRecruiters serve client-side-rendered SPAs that return no content to a plain fetch:
+   - Greenhouse: `boards-api.greenhouse.io/v1/boards/<company>/jobs/<id>`
+   - Lever: `api.lever.co/v0/postings/<company>` (list) — Lever's own job pages sometimes render fine too, but postings reposted via **Jobgether specifically 404 at a high rate** (confirmed 2026-09-20, both via the API and the page directly) — Jobgether's Lever links seem to expire fast; don't sink time re-trying a dead Jobgether link, move on.
+   - Ashby: `api.ashbyhq.com/posting-api/job-board/<company>`
+   - SmartRecruiters: `api.smartrecruiters.com/v1/companies/<company>/postings/<postingId>` (confirmed working 2026-09-20 — `<company>` and `<postingId>` both come straight from the posting's own URL, e.g. `jobs.smartrecruiters.com/Devoteam/743999933326144-...` → company `Devoteam`, postingId `743999933326144`)
+   - Personio/Teamtailor/Recruitee pages tend to render enough server-side for a plain WebFetch to work — no separate API needed so far.
 2. **Screen & score** — against `candidate-profile.md`'s rubric. Dedupe against what's already in the tracker (by source URL) before adding anything.
 3. **Tailor** — for `apply`/`review` tier postings, draft a 3–4 sentence tailored summary + which bullets from the master CV to lead with. `skip` tier is not logged, to keep the tracker signal-only.
 4. **Log** — new rows go into the tracker (see "Where the data lives").
