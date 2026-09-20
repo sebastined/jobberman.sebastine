@@ -1,0 +1,9 @@
+{
+  "name": "jobberman-tailor-cv",
+  "private": true,
+  "type": "module",
+  "description": "Generates per-posting tailored CV PDFs (see generate.mjs).",
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "postingLabel": "YGO — Cloud Security Engineer",
+  "summary": "Cloud security engineer with 8+ years spanning IAM governance, incident investigation, and cloud/container hardening. Triages Security Hub, GuardDuty, and Config findings and embeds security controls into CI/CD via Terraform at OGA SABI Ltd; previously hardened Kubernetes/EKS clusters (RBAC, Network Policies, Pod Security Admission) and deployed Zero Trust architecture reducing unauthorized access by 40% at Hardcore Biometric Systems. Comfortable owning security end-to-end across AWS-first, multi-cloud environments.",
+  "roleOrder": ["oga", "hardcore", "grc", "elate", "soft", "springboard", "rewired"]
+}

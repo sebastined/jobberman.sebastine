@@ -125,10 +125,17 @@
   .chip.gap { border-color: var(--bad); color: var(--bad); }
 
   .card-bottom { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .card-links { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
   .card-bottom a {
     color: var(--accent-2); text-decoration: none; font-size: 13px; font-weight: 600;
   }
   .card-bottom a:hover { text-decoration: underline; }
+  .cv-link {
+    background: none; border: none; padding: 0; margin: 0; cursor: pointer;
+    color: var(--accent); font-size: 12px; font-weight: 600; font-family: var(--sans);
+    text-decoration: underline; text-decoration-style: dotted;
+  }
+  .cv-link:disabled { opacity: 0.5; cursor: default; }
 
   select.status {
     font-family: var(--mono); font-size: 11.5px; padding: 5px 8px; border-radius: 7px;
@@ -283,7 +290,12 @@
         (d.tailoredSummary ? '<div class="tailored"><b>Tailoring note:</b> ' + esc(d.tailoredSummary) + '</div>' : '') +
         '<div class="chips">' + chipHtml(d.matchedRequirements, 'match') + chipHtml(d.gaps, 'gap') + '</div>' +
         '<div class="card-bottom">' +
-          '<a href="' + esc(d.sourceUrl || '#') + '" target="_blank" rel="noopener">View posting &rarr;</a>' +
+          '<div class="card-links">' +
+            '<a href="' + esc(d.sourceUrl || '#') + '" target="_blank" rel="noopener">View posting &rarr;</a>' +
+            (d.tailoredCvAssetId
+              ? '<button class="cv-link" data-asset="' + esc(d.tailoredCvAssetId) + '" data-filename="' + esc(d.tailoredCvFilename || 'Sebastine_Nnanemere_CV.pdf') + '">Download tailored CV</button>'
+              : '') +
+          '</div>' +
           '<div class="status-wrap">' +
             '<select class="status" data-id="' + esc(d.id) + '"' + (dbReady === 'ready' ? '' : ' disabled') + '>' + statusOptionsHtml(d.status) + '</select>' +
             '<span class="save-error" hidden></span>' +
@@ -379,12 +391,13 @@
     });
   }
 
-  var CV_ASSET_URL = '/_blob/8b835f0eebdb2d5fe07ae723b16d4bf8';
+  var CV_ASSET_ID = '8b835f0eebdb2d5fe07ae723b16d4bf8';
   var CV_FILENAME = 'Sebastine_Nnanemere_MASTER_CV.pdf';
 
-  document.getElementById('downloadCv').addEventListener('click', function () {
-    var btn = document.getElementById('downloadCv');
-    var errEl = document.getElementById('downloadCvError');
+  // Shared by the header's master-CV button and every per-card tailored-CV
+  // button: fetch the asset blob, then hand it to the platform's downloads
+  // capability so the viewer gets a normal save prompt.
+  function downloadAsset(assetId, filename, btn, errEl, busyLabel, idleLabel) {
     errEl.hidden = true;
     if (!(window.claude && window.claude.use)) {
       errEl.textContent = 'Downloads aren’t available in this view.';
@@ -392,22 +405,37 @@
       return;
     }
     btn.disabled = true;
-    btn.textContent = 'Preparing…';
+    var originalLabel = btn.textContent;
+    btn.textContent = busyLabel;
     window.claude.use('downloads').then(function (downloads) {
       if (!downloads) { throw { code: 'unavailable' }; }
-      return fetch(CV_ASSET_URL)
+      return fetch('/_blob/' + assetId)
         .then(function (res) { return res.blob(); })
-        .then(function (blob) { return downloads.save({ filename: CV_FILENAME, data: blob }); });
+        .then(function (blob) { return downloads.save({ filename: filename, data: blob }); });
     }).then(function () {
       btn.disabled = false;
-      btn.textContent = 'Download master CV (PDF)';
+      btn.textContent = idleLabel || originalLabel;
     }).catch(function (err) {
       btn.disabled = false;
-      btn.textContent = 'Download master CV (PDF)';
+      btn.textContent = idleLabel || originalLabel;
       var code = (err && err.code) || 'unknown';
       errEl.textContent = code === 'declined' ? 'Download cancelled.' : 'Couldn’t download (' + code + ') — try again.';
       errEl.hidden = false;
     });
+  }
+
+  document.getElementById('downloadCv').addEventListener('click', function () {
+    downloadAsset(CV_ASSET_ID, CV_FILENAME, document.getElementById('downloadCv'), document.getElementById('downloadCvError'), 'Preparing…', 'Download master CV (PDF)');
+  });
+
+  document.getElementById('list').addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t.classList.contains('cv-link')) return;
+    // Errors render as the button's own label (no separate error slot per
+    // card) - downloadAsset always restores idleLabel first, so give it an
+    // empty idle label here and let the catch branch's message be the only
+    // text, falling back to the normal label after a few seconds.
+    downloadAsset(t.getAttribute('data-asset'), t.getAttribute('data-filename'), t, t, 'Preparing…', 'Download tailored CV');
   });
 
   function boot() {
