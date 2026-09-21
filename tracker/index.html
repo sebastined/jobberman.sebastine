@@ -197,7 +197,7 @@
   <header class="top">
     <span class="eyebrow">Jobberman &middot; Sebastine Nnanemere</span>
     <h1>Job application tracker</h1>
-    <p class="sub">Postings discovered every weekday, screened against the cloud security / GRC / IAM profile, and queued here for review. Two tracks: Italy-remote (default) and a <span class="track-tag" style="vertical-align:1px;">Sponsorship</span> track for verified-visa-sponsored roles abroad, scored 80+. Nothing gets submitted automatically &mdash; change the status once you've applied.</p>
+    <p class="sub">Postings discovered every weekday, screened against the cloud security / GRC / IAM profile, and queued here for review. The <span class="track-tag" style="vertical-align:1px;">Sponsorship</span> tag marks individual postings abroad with visa/relocation sponsorship confirmed verbatim on the employer's own page &mdash; it's per-job, not a site-wide setting. Nothing gets submitted automatically &mdash; change the status once you've applied.</p>
     <button id="downloadCv" class="cv-btn">Download master CV (PDF)</button>
     <span class="save-error" id="downloadCvError" hidden></span>
   </header>
@@ -319,7 +319,7 @@
 
   function cardHtml(d) {
     var decisionCls = d.decision === 'apply' ? 'decision-apply' : d.decision === 'review' ? 'decision-review' : 'decision-skip';
-    var isSponsorship = d.track === 'sponsorship';
+    var isSponsorship = d.sponsorshipVerified === true;
     return (
       '<div class="card" data-id="' + esc(d.id) + '">' +
         '<div class="card-top">' +
@@ -516,7 +516,7 @@
     }
   });
 
-  var CSV_FIELDS = ['company', 'title', 'track', 'sponsorshipCountry', 'location', 'sourceUrl', 'salary', 'score', 'decision', 'confidence',
+  var CSV_FIELDS = ['company', 'title', 'track', 'sponsorshipVerified', 'sponsorshipEvidence', 'sponsorshipCountry', 'location', 'sourceUrl', 'salary', 'score', 'decision', 'confidence',
     'remoteEligibility', 'seniorityDetected', 'matchedRequirements', 'gaps', 'oneLineReason', 'tailoredSummary',
     'status', 'statusChangedAt', 'dateFound', 'tailoredCvFilename'];
 
