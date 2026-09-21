@@ -155,6 +155,14 @@
   .save-ok { font-size: 10.5px; color: var(--good); }
   select.status:disabled { opacity: 0.6; }
 
+  .mark-applied-btn {
+    font-family: var(--sans); font-size: 11.5px; font-weight: 600;
+    background: var(--good-bg); color: var(--good); border: 1px solid var(--good);
+    border-radius: 7px; padding: 5px 10px; cursor: pointer;
+  }
+  .mark-applied-btn:disabled { opacity: 0.6; cursor: default; }
+  .mark-applied-btn:hover:not(:disabled) { filter: brightness(1.1); }
+
   .cv-btn {
     align-self: flex-start; margin-top: 10px; font-family: var(--sans); font-size: 13px; font-weight: 600;
     background: var(--accent); color: var(--accent-ink); border: none; border-radius: 8px;
@@ -317,6 +325,9 @@
               : '') +
           '</div>' +
           '<div class="status-wrap">' +
+            (APPLIED_STATUSES.indexOf(d.status) === -1
+              ? '<button class="mark-applied-btn" data-id="' + esc(d.id) + '"' + (dbReady === 'ready' ? '' : ' disabled') + '>Mark Applied →</button>'
+              : '') +
             '<select class="status" data-id="' + esc(d.id) + '"' + (dbReady === 'ready' ? '' : ' disabled') + '>' + statusOptionsHtml(d.status) + '</select>' +
             '<span class="save-error" hidden></span>' +
           '</div>' +
@@ -360,34 +371,32 @@
     filters.q = e.target.value; render();
   });
 
-  document.getElementById('listsWrap').addEventListener('change', function (e) {
-    var t = e.target;
-    if (!t.classList.contains('status')) return;
-    var id = t.getAttribute('data-id');
-    var doc = allDocs.find(function (d) { return d.id === id; });
-    var prevStatus = doc ? doc.status : t.defaultValue;
-    var errEl = t.parentElement.querySelector('.save-error');
+  // Shared by the status <select> and the "Mark Applied" button - same
+  // underlying write either way. The button exists because the platform's
+  // db write can stall from a <select> change handler; if that turns out to
+  // be gesture-context-specific rather than a blanket backend issue, a plain
+  // button click might succeed where the dropdown doesn't. Report honestly
+  // either way rather than assuming the button is a real fix.
+  function saveStatus(id, newStatus, prevStatus, ctrl, errEl) {
     errEl.hidden = true;
-
     if (!dbNs) {
-      t.value = prevStatus;
+      if (ctrl.tagName === 'SELECT') ctrl.value = prevStatus;
       errEl.textContent = 'Not saved — live editing unavailable in this view.';
       errEl.hidden = false;
       return;
     }
-
-    t.disabled = true;
-    var newValue = t.value;
+    ctrl.disabled = true;
     withTimeout(
-      dbNs.doc('postings/' + id).update({ status: newValue, statusChangedAt: new Date().toISOString() }),
+      dbNs.doc('postings/' + id).update({ status: newStatus, statusChangedAt: new Date().toISOString() }),
       8000
     )
       .then(function () {
-        t.disabled = false;
+        ctrl.disabled = false;
       })
       .catch(function (err) {
-        t.disabled = false;
-        t.value = prevStatus;
+        ctrl.disabled = false;
+        if (ctrl.tagName === 'SELECT') ctrl.value = prevStatus;
+        var doc = allDocs.find(function (d) { return d.id === id; });
         if (doc) doc.status = prevStatus;
         var code = (err && err.code) || 'unknown';
         errEl.textContent = code === 'timeout'
@@ -395,6 +404,16 @@
           : 'Save failed (' + code + ') — try again.';
         errEl.hidden = false;
       });
+  }
+
+  document.getElementById('listsWrap').addEventListener('change', function (e) {
+    var t = e.target;
+    if (!t.classList.contains('status')) return;
+    var id = t.getAttribute('data-id');
+    var doc = allDocs.find(function (d) { return d.id === id; });
+    var prevStatus = doc ? doc.status : t.defaultValue;
+    var errEl = t.parentElement.querySelector('.save-error');
+    saveStatus(id, t.value, prevStatus, t, errEl);
   });
 
   // The db capability's own promises can, in practice, sometimes never settle
@@ -456,12 +475,22 @@
 
   document.getElementById('listsWrap').addEventListener('click', function (e) {
     var t = e.target;
-    if (!t.classList.contains('cv-link')) return;
-    // Errors render as the button's own label (no separate error slot per
-    // card) - downloadAsset always restores idleLabel first, so give it an
-    // empty idle label here and let the catch branch's message be the only
-    // text, falling back to the normal label after a few seconds.
-    downloadAsset(t.getAttribute('data-asset'), t.getAttribute('data-filename'), t, t, 'Preparing…', 'Download tailored CV');
+    if (t.classList.contains('cv-link')) {
+      // Errors render as the button's own label (no separate error slot per
+      // card) - downloadAsset always restores idleLabel first, so give it an
+      // empty idle label here and let the catch branch's message be the only
+      // text, falling back to the normal label after a few seconds.
+      downloadAsset(t.getAttribute('data-asset'), t.getAttribute('data-filename'), t, t, 'Preparing…', 'Download tailored CV');
+      return;
+    }
+    if (t.classList.contains('mark-applied-btn')) {
+      var id = t.getAttribute('data-id');
+      var doc = allDocs.find(function (d) { return d.id === id; });
+      var prevStatus = doc ? doc.status : 'Pending Review';
+      var errEl = t.parentElement.querySelector('.save-error');
+      saveStatus(id, 'Applied', prevStatus, t, errEl);
+      return;
+    }
   });
 
   var CSV_FIELDS = ['company', 'title', 'location', 'sourceUrl', 'salary', 'score', 'decision', 'confidence',
