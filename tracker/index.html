@@ -162,6 +162,13 @@
   }
   .cv-btn:disabled { opacity: 0.6; cursor: default; }
   .cv-btn:hover:not(:disabled) { filter: brightness(1.05); }
+  .cv-btn.small { padding: 6px 12px; font-size: 12px; margin-top: 0; }
+
+  .section-heading { font-size: 15px; font-weight: 700; margin: 28px 0 10px; }
+  .list:first-of-type .section-heading { margin-top: 0; }
+  .section-header-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 28px 0 10px; }
+  .section-header-row .section-heading { margin: 0; }
+  .section-sub { font-size: 12px; color: var(--ink-faint); margin: -6px 0 12px; }
 </style>
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
@@ -197,8 +204,20 @@
     <input id="search" type="text" placeholder="Search company or title&hellip;">
   </div>
 
-  <div class="list" id="list"></div>
-  <div class="empty" id="empty" hidden>No postings match these filters yet.</div>
+  <div id="listsWrap">
+    <h2 class="section-heading">Active</h2>
+    <div class="list" id="listActive"></div>
+    <div class="empty" id="emptyActive" hidden>No active postings match these filters.</div>
+
+    <div class="section-header-row">
+      <h2 class="section-heading">Applied Jobs</h2>
+      <button id="exportCsv" class="cv-btn small">Export CSV</button>
+      <span class="save-error" id="exportCsvError" hidden></span>
+    </div>
+    <p class="section-sub">Moves here automatically once you set a posting's status to Applied, Interview, Rejected, or Not Pursuing.</p>
+    <div class="list" id="listApplied"></div>
+    <div class="empty" id="emptyApplied" hidden>Nothing here yet.</div>
+  </div>
 
   <footer>Data lives in this artifact's own store &mdash; updates you make here (status) are saved live. A snapshot exports to Google Sheets weekly.</footer>
 </div>
@@ -206,6 +225,7 @@
 <script>
 (function () {
   var STATUS_OPTIONS = ['Pending Review', 'Approved to Apply', 'Applied', 'Interview', 'Rejected', 'Not Pursuing'];
+  var APPLIED_STATUSES = ['Applied', 'Interview', 'Rejected', 'Not Pursuing'];
   var allDocs = [];
   var filters = { decision: '', status: '', q: '' };
   var dbReady = 'pending'; // 'pending' | 'ready' | 'unavailable'
@@ -305,23 +325,29 @@
     );
   }
 
-  function render() {
-    updateBanner();
-    var filtered = allDocs.filter(matchesFilters);
-    renderStats(allDocs);
-    var list = document.getElementById('list');
-    var empty = document.getElementById('empty');
-    if (!filtered.length) {
+  function renderInto(listId, emptyId, docs) {
+    var list = document.getElementById(listId);
+    var empty = document.getElementById(emptyId);
+    if (!docs.length) {
       list.innerHTML = '';
       empty.hidden = false;
       return;
     }
     empty.hidden = true;
-    list.innerHTML = filtered
+    list.innerHTML = docs
       .slice()
       .sort(function (a, b) { return (b.score || 0) - (a.score || 0); })
       .map(cardHtml)
       .join('');
+  }
+
+  function render() {
+    updateBanner();
+    var filtered = allDocs.filter(matchesFilters);
+    renderStats(allDocs);
+    var isApplied = function (d) { return APPLIED_STATUSES.indexOf(d.status) !== -1; };
+    renderInto('listActive', 'emptyActive', filtered.filter(function (d) { return !isApplied(d); }));
+    renderInto('listApplied', 'emptyApplied', filtered.filter(isApplied));
   }
 
   document.getElementById('filterDecision').addEventListener('change', function (e) {
@@ -334,7 +360,7 @@
     filters.q = e.target.value; render();
   });
 
-  document.getElementById('list').addEventListener('change', function (e) {
+  document.getElementById('listsWrap').addEventListener('change', function (e) {
     var t = e.target;
     if (!t.classList.contains('status')) return;
     var id = t.getAttribute('data-id');
@@ -428,7 +454,7 @@
     downloadAsset(CV_ASSET_ID, CV_FILENAME, document.getElementById('downloadCv'), document.getElementById('downloadCvError'), 'Preparing…', 'Download master CV (PDF)');
   });
 
-  document.getElementById('list').addEventListener('click', function (e) {
+  document.getElementById('listsWrap').addEventListener('click', function (e) {
     var t = e.target;
     if (!t.classList.contains('cv-link')) return;
     // Errors render as the button's own label (no separate error slot per
@@ -436,6 +462,60 @@
     // empty idle label here and let the catch branch's message be the only
     // text, falling back to the normal label after a few seconds.
     downloadAsset(t.getAttribute('data-asset'), t.getAttribute('data-filename'), t, t, 'Preparing…', 'Download tailored CV');
+  });
+
+  var CSV_FIELDS = ['company', 'title', 'location', 'sourceUrl', 'salary', 'score', 'decision', 'confidence',
+    'remoteEligibility', 'seniorityDetected', 'matchedRequirements', 'gaps', 'oneLineReason', 'tailoredSummary',
+    'status', 'statusChangedAt', 'dateFound', 'tailoredCvFilename'];
+
+  function csvEscape(v) {
+    if (v == null) return '';
+    if (Array.isArray(v)) v = v.join('; ');
+    var s = String(v);
+    if (/[",\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  function buildAppliedCsv() {
+    var rows = allDocs.filter(function (d) { return APPLIED_STATUSES.indexOf(d.status) !== -1; });
+    var lines = [CSV_FIELDS.join(',')];
+    rows.forEach(function (d) {
+      lines.push(CSV_FIELDS.map(function (f) { return csvEscape(d[f]); }).join(','));
+    });
+    return lines.join('\r\n');
+  }
+
+  document.getElementById('exportCsv').addEventListener('click', function () {
+    var btn = document.getElementById('exportCsv');
+    var errEl = document.getElementById('exportCsvError');
+    errEl.hidden = true;
+    if (!(window.claude && window.claude.use)) {
+      errEl.textContent = 'Downloads aren’t available in this view.';
+      errEl.hidden = false;
+      return;
+    }
+    var appliedCount = allDocs.filter(function (d) { return APPLIED_STATUSES.indexOf(d.status) !== -1; }).length;
+    if (!appliedCount) {
+      errEl.textContent = 'Nothing applied yet to export.';
+      errEl.hidden = false;
+      return;
+    }
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = 'Preparing…';
+    window.claude.use('downloads').then(function (downloads) {
+      if (!downloads) throw { code: 'unavailable' };
+      return downloads.save({ filename: 'jobberman-applied-jobs.csv', data: buildAppliedCsv() });
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = original;
+    }).catch(function (err) {
+      btn.disabled = false;
+      btn.textContent = original;
+      var code = (err && err.code) || 'unknown';
+      errEl.textContent = code === 'declined' ? 'Export cancelled.' : 'Couldn’t export (' + code + ') — try again.';
+      errEl.hidden = false;
+    });
   });
 
   function boot() {
