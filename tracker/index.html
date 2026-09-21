@@ -16,6 +16,8 @@
     --warn-bg: #fbf1de;
     --bad: #b23b3b;
     --bad-bg: #fbe9e9;
+    --purple: #7b3fb2;
+    --purple-bg: #f1e8fa;
     --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
@@ -36,6 +38,8 @@
       --warn-bg: #332510;
       --bad: #ff7a7a;
       --bad-bg: #33191b;
+      --purple: #c197ea;
+      --purple-bg: #2a1f38;
     }
   }
   :root[data-theme="dark"] {
@@ -54,6 +58,8 @@
     --warn-bg: #332510;
     --bad: #ff7a7a;
     --bad-bg: #33191b;
+    --purple: #c197ea;
+    --purple-bg: #2a1f38;
   }
 
   * { box-sizing: border-box; }
@@ -114,6 +120,12 @@
   .decision-apply { color: var(--good); background: var(--good-bg); }
   .decision-review { color: var(--warn); background: var(--warn-bg); }
   .decision-skip { color: var(--bad); background: var(--bad-bg); }
+
+  .track-tag {
+    font-family: var(--mono); font-weight: 700; font-size: 11px; letter-spacing: 0.02em;
+    padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+    color: var(--purple); background: var(--purple-bg); border: 1px solid var(--purple);
+  }
 
   .reason { font-size: 13.5px; color: var(--ink); margin: 10px 0 8px; line-height: 1.5; }
   .tailored { font-size: 13px; color: var(--ink-dim); line-height: 1.5; margin-bottom: 10px; padding: 8px 10px; background: var(--bg); border-radius: 8px; border: 1px dashed var(--border); }
@@ -185,7 +197,7 @@
   <header class="top">
     <span class="eyebrow">Jobberman &middot; Sebastine Nnanemere</span>
     <h1>Job application tracker</h1>
-    <p class="sub">Postings discovered every weekday, screened against the cloud security / GRC / IAM profile, and queued here for review. Nothing gets submitted automatically &mdash; change the status once you've applied.</p>
+    <p class="sub">Postings discovered every weekday, screened against the cloud security / GRC / IAM profile, and queued here for review. Two tracks: Italy-remote (default) and a <span class="track-tag" style="vertical-align:1px;">Sponsorship</span> track for verified-visa-sponsored roles abroad, scored 80+. Nothing gets submitted automatically &mdash; change the status once you've applied.</p>
     <button id="downloadCv" class="cv-btn">Download master CV (PDF)</button>
     <span class="save-error" id="downloadCvError" hidden></span>
   </header>
@@ -208,6 +220,11 @@
       <option value="Interview">Interview</option>
       <option value="Rejected">Rejected</option>
       <option value="Not Pursuing">Not Pursuing</option>
+    </select>
+    <select id="filterTrack">
+      <option value="">All tracks</option>
+      <option value="italy-remote">Italy-remote</option>
+      <option value="sponsorship">Sponsorship (relocation)</option>
     </select>
     <input id="search" type="text" placeholder="Search company or title&hellip;">
   </div>
@@ -235,7 +252,7 @@
   var STATUS_OPTIONS = ['Pending Review', 'Approved to Apply', 'Applied', 'Interview', 'Rejected', 'Not Pursuing'];
   var APPLIED_STATUSES = ['Applied', 'Interview', 'Rejected', 'Not Pursuing'];
   var allDocs = [];
-  var filters = { decision: '', status: '', q: '' };
+  var filters = { decision: '', status: '', q: '', track: '' };
   var dbReady = 'pending'; // 'pending' | 'ready' | 'unavailable'
   var dbNs = null;
 
@@ -282,6 +299,7 @@
   function matchesFilters(d) {
     if (filters.decision && d.decision !== filters.decision) return false;
     if (filters.status && d.status !== filters.status) return false;
+    if (filters.track && (d.track || 'italy-remote') !== filters.track) return false;
     if (filters.q) {
       var hay = ((d.company || '') + ' ' + (d.title || '')).toLowerCase();
       if (hay.indexOf(filters.q.toLowerCase()) === -1) return false;
@@ -301,12 +319,14 @@
 
   function cardHtml(d) {
     var decisionCls = d.decision === 'apply' ? 'decision-apply' : d.decision === 'review' ? 'decision-review' : 'decision-skip';
+    var isSponsorship = d.track === 'sponsorship';
     return (
       '<div class="card" data-id="' + esc(d.id) + '">' +
         '<div class="card-top">' +
           '<div class="card-id">' +
             '<span class="company">' + esc(d.company) + '</span>' +
             '<span class="title">' + esc(d.title) + '</span>' +
+            (isSponsorship ? '<span class="track-tag">Sponsorship' + (d.sponsorshipCountry ? ' &middot; ' + esc(d.sponsorshipCountry) : '') + '</span>' : '') +
           '</div>' +
           '<span class="score-pill ' + decisionCls + '">' + esc(d.score) + ' &middot; ' + esc(d.decision) + '</span>' +
         '</div>' +
@@ -366,6 +386,9 @@
   });
   document.getElementById('filterStatus').addEventListener('change', function (e) {
     filters.status = e.target.value; render();
+  });
+  document.getElementById('filterTrack').addEventListener('change', function (e) {
+    filters.track = e.target.value; render();
   });
   document.getElementById('search').addEventListener('input', function (e) {
     filters.q = e.target.value; render();
@@ -493,7 +516,7 @@
     }
   });
 
-  var CSV_FIELDS = ['company', 'title', 'location', 'sourceUrl', 'salary', 'score', 'decision', 'confidence',
+  var CSV_FIELDS = ['company', 'title', 'track', 'sponsorshipCountry', 'location', 'sourceUrl', 'salary', 'score', 'decision', 'confidence',
     'remoteEligibility', 'seniorityDetected', 'matchedRequirements', 'gaps', 'oneLineReason', 'tailoredSummary',
     'status', 'statusChangedAt', 'dateFound', 'tailoredCvFilename'];
 

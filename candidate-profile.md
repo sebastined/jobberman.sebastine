@@ -6,15 +6,29 @@ Source of truth for facts: `C:\work\sebastine.com\cv.sebastine\Sebastine_Nnaneme
 
 - **Name:** Sebastine Nnanemere (goes by "Ikenga" as a personal/project brand — ikenga.ng, Ikenga Academy, ciso.ikenga.ng — but CVs and applications use the real name)
 - **Current title:** Senior Cloud Security Engineer, 8+ years (2017–present)
-- **Strengths:** cloud security engineering (AWS primary, Azure/GCP familiar), IAM governance, incident response, GRC advisory (SOC 2, ISO 27001, GDPR, PCI DSS), DevSecOps/CI-CD security, Kubernetes/EKS hardening
+- **Strengths:** cloud security engineering (AWS primary, Azure/GCP familiar), IAM governance, incident response, GRC advisory (SOC 2, ISO 27001, GDPR, PCI DSS), DevSecOps/CI-CD security, Kubernetes/EKS hardening, cloud engineering, SRE
+- **DevOps depth — note:** candidate's own assessment is that his DevOps skill level is junior — do not score him as a strong fit for Senior/Staff DevOps Engineer roles that require deep, primary-role CI/CD pipeline ownership. His Cloud Engineering and SRE experience is stronger and more senior; prefer scoring Cloud Engineer / SRE / Platform Engineer titles over pure DevOps titles, and treat mid/junior-level DevOps postings as fair game but senior/staff DevOps postings as a skills-gap (lower the 40-pt skills score accordingly, don't hard-fail).
 - **Certifications held:** AWS Certified Solutions Architect – Associate, (ISC)² Certified in Cybersecurity (CC), CompTIA Security+, Microsoft Azure Security Fundamentals, Fortinet NSE 1–3, IELTS 7.5/UKVI 7.5
 - **Certification in progress — NOT held:** AWS Certified Security – Specialty (scored 709/1000 on 2026-09-20, below the passing bar; retake planned). Never credit a posting's "AWS Security Specialty" requirement as met. Update this file and the live scheduled routine the moment it's actually passed.
-- **Target roles:** Cloud Security Engineer, DevSecOps Engineer, Security/Cloud Architect, Incident Response Engineer, GRC/Compliance/Security Assurance, IAM roles
+- **Target roles:** Cloud Security Engineer, DevSecOps Engineer, Security/Cloud Architect, Incident Response Engineer, GRC/Compliance/Security Assurance, IAM roles, Cloud Engineer, Site Reliability Engineer (SRE), System Administrator (cloud/infra-focused), Network Engineer (Fortinet/Cisco security-adjacent), mid/junior-level DevOps Engineer. Added 2026-09-21 at candidate's request to widen search scope beyond pure security titles.
 - **Target seniority:** mid-senior to senior. Skip junior/intern/graduate roles and roles clearly above this level (director, VP, head of, 12+ years required)
 - **Location:** Sicily, Italy. Open to: remote roles that allow Italy residency, Europe-based remote roles, hybrid roles only if the office is in Italy.
 - **Work authorization:** Authorized to work in Italy only. Would need sponsorship for any other EU/European country.
 - **Languages:** English (fluent), Italian (basic — not professional fluency). Does not speak Polish, Ukrainian, or Russian.
 - **Salary floor:** €35,000/year (gross, assumed annual EUR unless stated otherwise). Target range €35,000–€70,000/year.
+
+## Track 2: Sponsorship / relocation track (added 2026-09-21, tagged purple in the tracker)
+
+A second, separate search track alongside the Italy-remote track above. This track looks for roles the candidate would relocate for, not remote-from-Italy roles — so its location hard filter is different. Everything else (role families, general seniority sense, quality bar) still comes from the candidate profile above.
+
+- **Eligible countries (job must be based in / sponsor relocation to one of these):** USA, Canada, UK (Scotland or Wales specifically named by the candidate — treat any UK-wide-eligible posting as qualifying unless it excludes Scotland/Wales), Ireland, France, Estonia, Lithuania, Czechia, Hungary, Germany, Portugal, Poland.
+- **Language:** English-speaking role only — the job's working language must be English even though the country may not be. A posting requiring conversational/professional fluency in the local language (German, French, Czech, etc.) fails this filter, same as the Italy track's language rule.
+- **Sponsorship must be VERIFIED, not assumed.** The live posting (or an official careers-page policy page for that same employer, fetched the same run) must explicitly state that the company sponsors work visas / relocation for international candidates for this role. A posting that is merely silent on sponsorship does not qualify — silence is not verification. Quote or cite the sponsoring language in the record.
+- **Target score band: 80–100.** This track uses a higher bar than the Italy track's ≥75 apply threshold — only log postings scoring 80 or above under this track. Score using the same 0–100 rubric below (skills 40 / role+seniority 25 / location+remote 15 — reinterpreted here as "genuine sponsorship + reasonable relocation package" / domain 10 / quality 10).
+- **Salary floor:** local-market equivalent of the €35,000 floor (roughly $38,000 USD or local equivalent) — don't apply the literal EUR figure to non-EUR postings without converting.
+- **Role families, seniority range, and all other candidate facts (certifications, target roles including the 2026-09-21 DevOps/SRE/Cloud Engineer/Network Engineer expansion, AWS Security Specialty not-yet-held caveat) are identical to the main profile above.**
+- **Mandatory verification applies here too** — never log a sponsorship-track posting without a live fetch confirming both the role details and the sponsorship language that same run.
+- Tag every posting logged under this track with `"track": "sponsorship"` and a `"sponsorshipCountry"` field in the tracker's `postings` collection, so the tracker UI can render its purple badge and the two tracks stay visually distinct. Postings under the original Italy-remote track should carry `"track": "italy-remote"` (or be left without the field — the tracker treats missing `track` as the Italy-remote default).
 
 ## Hard filters (any one → decision = "skip")
 
