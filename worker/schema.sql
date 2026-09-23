@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS postings (
 CREATE INDEX IF NOT EXISTS idx_postings_status ON postings(status);
 CREATE INDEX IF NOT EXISTS idx_postings_track ON postings(track);
 CREATE INDEX IF NOT EXISTS idx_postings_date_found ON postings(date_found);
+CREATE INDEX IF NOT EXISTS idx_postings_source_url ON postings(source_url);
 
 -- Every posting evaluated, regardless of outcome — dedup + audit trail across runs.
 CREATE TABLE IF NOT EXISTS seen (
@@ -42,6 +43,8 @@ CREATE TABLE IF NOT EXISTS seen (
   source_url      TEXT,
   created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_seen_source_url ON seen(source_url);
 
 -- One row per cron fire, for diagnosing "why no new jobs" without digging through logs.
 CREATE TABLE IF NOT EXISTS runs (

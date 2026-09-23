@@ -1,10 +1,12 @@
 {
   "name": "jobberman-worker",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
     "db:init": "wrangler d1 execute jobberman --remote --file=./schema.sql",
     "db:init:local": "wrangler d1 execute jobberman --local --file=./schema.sql",
     "db:seed": "wrangler d1 execute jobberman --remote --file=./seed.sql",

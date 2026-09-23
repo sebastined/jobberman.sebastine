@@ -5,20 +5,23 @@
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
 
-  // Berlin-time 8am/9am/9pm/10pm, Mon-Fri, expressed in UTC (fixed offset — matches
-  // the CEST/summer offset used by the previous Claude Code routine; during CET
-  // winter months (late Oct - late Mar) actual Berlin-local fire times shift an
-  // hour earlier, same known/accepted drift as before. Revisit if that matters.
+  // Public workers.dev URL only; preview URLs off so there's a single surface to protect.
+  "workers_dev": true,
+  "preview_urls": false,
+
+  // Berlin-time 8am/9am/9pm/10pm, Mon-Fri, in UTC (fixed offset = CEST/summer; fires an hour
+  // earlier by the clock during CET winter — same accepted drift as the old routine).
+  // :00 screens the Italy-remote track, :30 the sponsorship track (see src/index.ts). Two
+  // triggers keep each invocation inside the free plan's 50-subrequest limit.
   "triggers": {
-    "crons": ["0 6,7,19,20 * * 1-5"]
+    "crons": ["0 6,7,19,20 * * 1-5", "30 6,7,19,20 * * 1-5"]
   },
 
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "jobberman",
-      // Filled in after `wrangler d1 create jobberman` — see README.md.
-      "database_id": "REPLACE_AFTER_D1_CREATE"
+      "database_id": "3a3ee92f-6815-49e6-beb5-f31cbfdf78fc"
     }
   ],
 

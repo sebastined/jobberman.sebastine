@@ -2,6 +2,19 @@
 
 This file exists so work can resume from any device/session with full context. Read this first.
 
+> **UPDATE 2026-09-24 — the system of record is now a Cloudflare Worker, not the Claude Code routine + Artifact tracker.**
+> Everything below this box that describes the routine (`trig_01Vcy…`) and the Artifact `db` tracker is the *previous* architecture,
+> kept for history and for the rules that carried over (verification, hard filters, tracks). What replaced it and why:
+>
+> - **Live app:** `https://jobberman.iam-e60.workers.dev` (Worker `jobberman`, D1 database `jobberman`, account `iam@sebastine.com`). Code in `worker/` — read `worker/README.md`.
+> - **Why it moved:** the routine kept dying on the Claude Code sandbox's egress blocks (`EGRESS_BLOCKED`, even for google.com) and on session rate limits ("You've hit your session limit") before it could do any work — 6 straight runs on 2026-09-22/23 added nothing. The Artifact `db` browser-write bug (status dropdown never settling) is also gone: status changes are plain `PATCH /api/postings/:id/status` calls.
+> - **Access:** the API is bearer-token gated (`TRACKER_TOKEN` secret, fails closed). Open the tracker once per device via `/#key=<token>`. The token is *not* stored in the repo.
+> - **What carried over unchanged:** live verification before anything reaches the tracker (now enforced in code: only real job-detail pages on known ATS platforms are considered, each fetched from its own ATS; 404/410 = gone), the hard filters, the two tracks (`italy-remote`, `sponsorship`), the rubric (`candidate-profile.md` ↔ `worker/src/profile.ts` — keep both in sync by hand), and the sponsorship rule that the quoted evidence must come from the primary source — now checked mechanically (the quote must appear verbatim in the fetched text or the posting is skipped).
+> - **What did NOT carry over:** tailored-CV generation/hosting (`tailor-cv/generate.mjs` is still manual), phone push notifications (the UI's health strip + run history replace them), and the weekly Google Sheet export.
+> - **Constraints discovered the hard way:** Workers *Free* plan = 50 outbound subrequests + 10 ms CPU per invocation (the first production run died on the subrequest limit; runs are now metered against a 44-request budget). If a run reports "interrupted", upgrade to Workers Paid ($5/mo). The Anthropic key needs prepaid credit (`console.anthropic.com` → Plans & Billing) — a zero balance shows up in the UI as "credit balance is too low".
+> - **Old routine:** still exists and still fires until disabled (`RemoteTrigger update … enabled:false` on `trig_01VcyBPCT3n8bbbqUtWA54Xm`). Disable it once the Worker has produced its first real run, so two systems aren't racing. The old Artifact tracker (`claude.ai/artifact/RxsbsAxcDHnnT7zH4MZtna`) is now a read-only archive.
+> - **Credentials that were pasted into chat on 2026-09-23/24 (Cloudflare API token, Brave key, Anthropic key) should be rotated** now that setup is done.
+
 ## What this project is
 
 A semi-automated job-search pipeline for Sebastine Nnanemere (Senior Cloud Security Engineer, Sicily, Italy). It discovers new postings on a schedule, screens them against `candidate-profile.md`, tailors CV notes for the ones worth pursuing, and logs everything to a live tracker. It stops one step short of submitting applications — that step is manual by design (see "Known gaps" below).
