@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jobberman",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Berlin-time 8am/9am/9pm/10pm, Mon-Fri, expressed in UTC (fixed offset — matches
+  // the CEST/summer offset used by the previous Claude Code routine; during CET
+  // winter months (late Oct - late Mar) actual Berlin-local fire times shift an
+  // hour earlier, same known/accepted drift as before. Revisit if that matters.
+  "triggers": {
+    "crons": ["0 6,7,19,20 * * 1-5"]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "jobberman",
+      // Filled in after `wrangler d1 create jobberman` — see README.md.
+      "database_id": "REPLACE_AFTER_D1_CREATE"
+    }
+  ],
+
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}
