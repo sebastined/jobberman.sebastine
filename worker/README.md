@@ -11,6 +11,10 @@ Cloudflare Worker that replaces the old Claude Code scheduled routine + Artifact
 Why it exists: the old routine died on the Claude Code sandbox's egress blocks and session rate limits. This runs on
 ordinary Cloudflare networking with its own API billing.
 
+Deployed to the Cloudflare account **"Mr Sebastine"** (where the `sebastine.com` zone lives) as the custom domain
+`jobberman.sebastine.com` (`routes` in `wrangler.jsonc`; `account_id` is pinned there because the API token can see two accounts).
+`public/_headers` marks responses `no-transform` so the zone doesn't inject its bot-detection inline script, which the strict CSP would block.
+
 ## How a run works
 
 1. **Discover** – 3 rotating Brave Search queries per run. Only URLs that are real *job-detail pages on a known ATS*
@@ -45,7 +49,7 @@ npx wrangler secret put TRACKER_TOKEN             # the access key for the UI/AP
 npm run deploy
 ```
 
-Open the tracker at `https://<worker>.workers.dev/#key=<TRACKER_TOKEN>` once per device — the key is stored in that
+Open the tracker at `https://jobberman.sebastine.com/#key=<TRACKER_TOKEN>` once per device — the key is stored in that
 browser's localStorage and stripped from the URL. Without a key the API answers 401 (and fails closed if
 `TRACKER_TOKEN` is unset).
 

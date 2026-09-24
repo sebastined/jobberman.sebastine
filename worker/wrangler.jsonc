@@ -5,9 +5,16 @@
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
 
-  // Public workers.dev URL only; preview URLs off so there's a single surface to protect.
+  // The "Mr Sebastine" account — where the sebastine.com zone lives. (Workers custom domains
+  // only work when the Worker and the zone are in the same account.) Pinned because the API
+  // token can see two accounts and wrangler can't pick one non-interactively.
+  "account_id": "2e8613c8e1d71d6a8668e92d12f7d05e",
+
+  // Preview URLs off so there's a single surface to protect.
   "workers_dev": true,
   "preview_urls": false,
+
+  "routes": [{ "pattern": "jobberman.sebastine.com", "custom_domain": true }],
 
   // Berlin-time 8am/9am/9pm/10pm, Mon-Fri, in UTC (fixed offset = CEST/summer; fires an hour
   // earlier by the clock during CET winter — same accepted drift as the old routine).
@@ -21,7 +28,7 @@
     {
       "binding": "DB",
       "database_name": "jobberman",
-      "database_id": "3a3ee92f-6815-49e6-beb5-f31cbfdf78fc"
+      "database_id": "d4ebcb0a-a357-44da-ab3e-4880da280b85"
     }
   ],
 
