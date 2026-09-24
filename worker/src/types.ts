@@ -10,6 +10,11 @@ export interface Env {
 
 export type Track = "italy-remote" | "sponsorship";
 export type Decision = "apply" | "review" | "skip";
+/**
+ * Where a posting's text came from: the employer's own job page found by search ("employer"), a public job
+ * board's listing ("board"), or an employer page reached through a LinkedIn-listed role ("linkedin").
+ */
+export type SourceKind = "employer" | "board" | "linkedin";
 export type Status =
   | "Pending Review"
   | "Approved to Apply"
@@ -53,6 +58,8 @@ export interface Posting {
   date_found: string;
   tailored_cv_url: string | null;
   tailored_cv_filename: string | null;
+  source_board: string | null;
+  source_kind: SourceKind | null;
 }
 
 /** What the screening model returns per posting. */
@@ -86,11 +93,26 @@ export interface RunRow {
   notes: string | null;
 }
 
+/** Per-board yield, from everything the pipeline has ever checked. */
+export interface BoardStat {
+  board: string;
+  checked: number;
+  dead: number;
+  unverified: number;
+  prefiltered: number;
+  screened: number;
+  added: number;
+  last_seen: string | null;
+}
+
 /** Streamed to the UI (NDJSON) during a manual run; also drives the run console. */
 export type RunEvent =
   | { type: "start"; run_id: number; tracks: Track[] }
-  | { type: "search"; track: Track; query: string; hits: number }
-  | { type: "discovered"; track: Track; hits: number; job_pages: number; fresh: number }
+  | { type: "search"; track: Track; query: string; hits: number; purpose?: "discover" | "linkedin" | "resolve" }
+  | { type: "feed"; track: Track; board: string; items: number }
+  | { type: "crawl"; track: Track; board: string; company: string; jobs: number; in_scope: number; ok: boolean }
+  | { type: "lead"; track: Track; role: string; company: string; url?: string; board?: string }
+  | { type: "discovered"; track: Track; hits: number; job_pages: number; fresh: number; feed_items?: number; leads?: number; triaged?: number; crawled?: number; crawl_roles?: number }
   | {
       type: "candidate";
       track: Track;
@@ -101,6 +123,7 @@ export type RunEvent =
       title?: string;
       score?: number;
       decision?: Decision;
+      board?: string;
     }
   | { type: "done"; run_id: number; status: "ok" | "error"; evaluated: number; added: number; budget_used: number; notes: string[] }
   | { type: "error"; message: string; fatal?: boolean };

@@ -345,12 +345,27 @@
   function statusPill(d) {
     return '<span class="pill status" style="--c:' + STATUS_COLOR[d.status] + '"><i class="dot"></i>' + esc(d.status) + "</span>";
   }
+  // Where the posting text came from. Employer pages are the primary source; board listings and LinkedIn leads are labelled as such.
+  function srcBadge(d) {
+    if (!d.source_board) return "";
+    var b = esc(d.source_board);
+    if (d.source_kind === "linkedin") return '<span class="src li" title="Found through a public LinkedIn listing, then verified live on the employer\'s own ' + b + ' page">via LinkedIn · ' + b + "</span>";
+    if (d.source_kind === "board") return '<span class="src bd" title="Listed on the ' + b + ' job board (fetched live from the board, not the employer\'s own page)">' + b + " · board listing</span>";
+    return '<span class="src" title="Verified live on the employer\'s own ' + b + ' page">' + b + "</span>";
+  }
+  function srcNote(d) {
+    if (!d.source_board) return "";
+    if (d.source_kind === "linkedin") return "Found via a public LinkedIn listing; verified live on the employer's own " + d.source_board + " page";
+    if (d.source_kind === "board") return d.source_board + " job board listing (fetched live from the board, not the employer's own page)";
+    return "Employer's own " + d.source_board + " page (fetched live)";
+  }
 
   function cardHtml(d, mode, i) {
     var applied = isApplied(d), row = mode === "row";
     var tags = '<span class="pill ' + esc(d.decision) + '"><i class="dot"></i>' + cap(d.decision) + "</span>" +
       (d.sponsorship_verified ? sponTag(d) : "") + (row ? statusPill(d) : "");
     var meta = "";
+    if (d.source_board) meta += srcBadge(d);
     if (d.location) meta += '<span title="' + esc(d.location) + '">' + esc(d.location) + "</span>";
     if (!isUnclear(d.salary)) meta += '<span title="' + esc(d.salary) + '">' + esc(d.salary) + "</span>";
     var action = applied ? "" : '<button type="button" class="mini go" data-act="applied" data-id="' + esc(d.id) + '" aria-label="Mark ' + esc(d.company) + ' as applied">' + ic("check") + "Applied</button>";
@@ -495,7 +510,7 @@
       (d.sponsorship_verified && d.sponsorship_evidence
         ? '<section class="evidence"><h3>' + ic("shield") + 'Sponsorship — verified verbatim</h3><blockquote>' + esc(d.sponsorship_evidence) + '</blockquote><p class="src">Quoted from the employer\'s own posting, and checked against the fetched text before it was saved.</p></section>'
         : "") +
-      '<section><h3>Details</h3><dl class="kv">' + kv("Location", d.location) + kv("Eligibility", d.remote_eligibility) + kv("Seniority", d.seniority_detected) + kv("Salary", d.salary) + kv("Found", d.date_found ? new Date(d.date_found).toLocaleString() : "") + "</dl></section>" +
+      '<section><h3>Details</h3><dl class="kv">' + kv("Location", d.location) + kv("Eligibility", d.remote_eligibility) + kv("Seniority", d.seniority_detected) + kv("Salary", d.salary) + kv("Source", srcNote(d)) + kv("Found", d.date_found ? new Date(d.date_found).toLocaleString() : "") + "</dl></section>" +
       "<section><h3>Matches</h3>" + bullets(d.matched_requirements, "good") + "</section>" +
       "<section><h3>Gaps &amp; open questions</h3>" + bullets(d.gaps, "gap") + "</section>" +
       (d.tailored_summary ? '<section><h3>Tailoring note</h3><div class="note">' + esc(d.tailored_summary) + '<button class="icon-btn" type="button" data-act="copy-note" data-id="' + esc(d.id) + '" aria-label="Copy tailoring note">' + ic("copy") + "</button></div></section>" : "") +
@@ -558,6 +573,7 @@
     return [
       { label: "Run pipeline now", hint: "search & screen both tracks", icon: "play", run: function () { openConsole(true); } },
       { label: "View run history", hint: "what ran, what it found", icon: "pulse", run: function () { openConsole(false); } },
+      { label: "View boards & yield", hint: "every source searched", icon: "list", run: function () { openConsole(false); setTab("boards"); } },
       { label: "Switch to board view", hint: "b", icon: "board", run: function () { setView("board"); } },
       { label: "Switch to list view", hint: "l", icon: "list", run: function () { setView("list"); } },
       { label: "Filter: apply tier", icon: "check", run: function () { S.filters.decision = "apply"; refilter(); } },
@@ -609,14 +625,28 @@
   }
 
   // ------------------------------------------------------------------ run console
-  var runInfo = { logging: false };
+  var runInfo = { logging: false, tab: "runs", detail: null, target: null };
+  function syncTabs() {
+    $$("#consoleTabs [data-tab]").forEach(function (b) { b.setAttribute("aria-selected", String(b.getAttribute("data-tab") === runInfo.tab)); });
+  }
+  function setTab(tab) {
+    if (runInfo.logging) return;
+    runInfo.tab = tab; runInfo.detail = null; syncTabs(); renderConsole();
+  }
+  function renderConsole() {
+    if (runInfo.logging) return;
+    runInfo.target = null;
+    if (runInfo.tab === "boards") renderBoards();
+    else if (runInfo.detail) renderRunDetail(runInfo.detail);
+    else renderHistory();
+  }
   function openConsole(autorun) {
     var m = $("#console");
     m.hidden = false; lastFocus = lastFocus || document.activeElement;
-    if (!runInfo.logging) renderHistory();
+    if (!runInfo.logging) { runInfo.tab = "runs"; runInfo.detail = null; syncTabs(); renderConsole(); }
     $("#runGo").focus();
     if (autorun) startRun();
-    else api("/api/runs").then(function (r) { return r.json(); }).then(function (r) { S.runs = r; if (!runInfo.logging) renderHistory(); renderHealth(); }).catch(function () {});
+    else api("/api/runs").then(function (r) { return r.json(); }).then(function (r) { S.runs = r; if (!runInfo.logging && runInfo.tab === "runs" && !runInfo.detail) renderHistory(); renderHealth(); }).catch(function () {});
   }
   function closeConsole() {
     $("#console").hidden = true;
@@ -624,17 +654,60 @@
   }
   function renderHistory() {
     var runs = (S.runs && S.runs.runs) || [];
-    $("#consoleSub").textContent = runs.length ? "Recent runs · " + ((S.runs && S.runs.seen_count) || 0) + " postings evaluated to date" : "No runs recorded yet";
+    $("#consoleSub").textContent = runs.length ? "Recent runs · " + ((S.runs && S.runs.seen_count) || 0) + " postings evaluated to date · click a run for its full log" : "No runs recorded yet";
     var body = $("#consoleBody");
     if (!runs.length) { body.innerHTML = '<p style="font-family:var(--font);color:var(--ink-3);padding:18px 0">No runs yet. Press “Run now” to start one, or wait for the next scheduled run.</p>'; return; }
     body.innerHTML = '<table class="hist"><thead><tr><th>When</th><th>Result</th><th>Screened</th><th>Added</th><th>Notes</th></tr></thead><tbody>' + runs.map(function (r) {
       var c = r.status === "ok" ? "var(--good)" : r.status === "error" ? "var(--critical)" : "var(--accent)";
       var lbl = r.status === "ok" ? "OK" : r.status === "error" ? "Failed" : "Running";
-      return "<tr><td>" + esc(relTime(r.started_at)) + '<br><span class="notes">' + esc(new Date(r.started_at).toLocaleString()) + '</span></td><td><span class="st" style="--c:' + c + '"><i></i>' + lbl + "</span></td><td>" + r.postings_evaluated + "</td><td>" + r.postings_added + '</td><td class="notes">' + esc(humanizeError(r.notes || "")) + "</td></tr>";
+      return '<tr class="hist-row" data-run="' + r.id + '" tabindex="0" role="button" aria-label="Show the full log of run ' + r.id + '"><td>' + esc(relTime(r.started_at)) + '<br><span class="notes">' + esc(new Date(r.started_at).toLocaleString()) + '</span></td><td><span class="st" style="--c:' + c + '"><i></i>' + lbl + "</span></td><td>" + r.postings_evaluated + "</td><td>" + r.postings_added + '</td><td class="notes">' + esc(humanizeError(r.notes || "")) + "</td></tr>";
     }).join("") + "</tbody></table>";
   }
-  function logLine(cls, label, html) {
+  function renderRunDetail(id) {
     var body = $("#consoleBody");
+    $("#consoleSub").textContent = "Run #" + id;
+    body.innerHTML = '<p class="muted-p">Loading run…</p>';
+    api("/api/runs/" + id).then(function (r) { return r.json(); }).then(function (run) {
+      if (runInfo.logging || runInfo.detail !== id || runInfo.tab !== "runs") return;
+      body.innerHTML = '<button type="button" class="btn back" data-act="runs-back">← All runs</button><div id="runLog"></div>';
+      runInfo.target = $("#runLog");
+      $("#consoleSub").textContent = "Run #" + id + " · " + new Date(run.started_at).toLocaleString();
+      (run.notes ? run.notes.split(" | ") : []).forEach(function (n) { logLine(/^FATAL/.test(n) ? "fatal" : "run", /^FATAL/.test(n) ? "STOPPED" : "SUMMARY", esc(/^FATAL/.test(n) ? humanizeError(n) : n)); });
+      if (!run.log || !run.log.length) logLine("done", "NOTE", "This run was recorded before per-step logs were kept, or it ended before finishing.");
+      (run.log || []).forEach(function (ev) { if (ev.type !== "done" && ev.type !== "start") handleRunEvent(ev); });
+      runInfo.target = null;
+    }).catch(function (err) { body.innerHTML = '<p class="muted-p">Couldn\'t load that run (' + esc(err.message) + ").</p>"; });
+  }
+  function renderBoards() {
+    var body = $("#consoleBody");
+    $("#consoleSub").textContent = "Every board searched, and what each has yielded";
+    body.innerHTML = '<p class="muted-p">Loading boards…</p>';
+    api("/api/boards").then(function (r) { return r.json(); }).then(function (r) {
+      if (runInfo.logging || runInfo.tab !== "boards") return;
+      var boards = r.boards || [];
+      var groups = [
+        { k: "employer", title: "Employer job systems", sub: "Each posting is fetched live from the employer's own page — the primary source." },
+        { k: "public", title: "Public job boards", sub: "Listings fetched live from the board itself. Italy-remote track only, labelled as board listings." },
+        { k: "linkedin", title: "LinkedIn", sub: "Never fetched or scraped. Roles LinkedIn lists publicly are looked up on the employer's own job system and only counted once verified there." },
+      ];
+      var tot = boards.reduce(function (a, b) { a.checked += b.checked; a.kept += b.in_tracker; return a; }, { checked: 0, kept: 0 });
+      var html = '<p class="boards-sum">' + boards.length + " sources · <b>" + tot.checked + "</b> postings checked so far · <b>" + tot.kept + "</b> in the tracker. None of them needs a sign-in." + (r.companies ? " The pipeline knows <b>" + r.companies.known + "</b> company job boards (<b>" + r.companies.crawled + "</b> crawled so far, <b>" + r.companies.with_postings + "</b> have produced a tracker entry) and re-reads their live job lists each run." : "") + "</p>";
+      groups.forEach(function (g) {
+        var rows = boards.filter(function (b) { return b.group === g.k; });
+        if (!rows.length) return;
+        html += '<h3 class="bd-h">' + esc(g.title) + '</h3><p class="bd-sub">' + esc(g.sub) + '</p><table class="hist boards"><thead><tr><th>Source</th><th>Checked</th><th>Dead</th><th>Filtered</th><th>Screened</th><th>In tracker</th></tr></thead><tbody>' +
+          rows.map(function (b) {
+            var trk = b.tracks.length === 2 ? "both tracks" : "Italy-remote only";
+            var num = function (n) { return n ? String(n) : '<span class="zero">–</span>'; };
+            return '<tr><td><b>' + esc(b.name) + '</b><br><span class="notes">' + esc(trk + " · " + b.how) + "</span></td><td>" + num(b.checked) + "</td><td>" + num(b.dead) + "</td><td>" + num(b.prefiltered) + "</td><td>" + num(b.screened) + "</td><td>" + (b.in_tracker ? "<b>" + b.in_tracker + "</b>" : '<span class="zero">–</span>') + "</td></tr>";
+          }).join("") + "</tbody></table>";
+      });
+      html += '<p class="bd-sub" style="margin-top:14px"><b>Dead</b> = the posting no longer exists or is closed. <b>Filtered</b> = dropped by a cheap check (wrong region, no sponsorship wording, duplicate). Sources added recently show – until a run has visited them.</p>';
+      body.innerHTML = html;
+    }).catch(function (err) { body.innerHTML = '<p class="muted-p">Couldn\'t load boards (' + esc(err.message) + ").</p>"; });
+  }
+  function logLine(cls, label, html) {
+    var body = runInfo.target || $("#consoleBody");
     var el = document.createElement("div");
     el.className = "log " + cls;
     el.innerHTML = '<span class="lb">' + label + '</span><span class="lm">' + html + "</span>";
@@ -647,46 +720,67 @@
   function handleRunEvent(e) {
     switch (e.type) {
       case "start": logLine("run", "START", "Run #" + e.run_id + " · " + esc(e.tracks.join(" + "))); break;
-      case "search": logLine("search", "SEARCH", "<b>" + e.hits + "</b> hits <span class=\"dim\">· " + esc(e.query) + "</span>"); break;
-      case "discovered": logLine("found", "FOUND", e.hits + " hits → <b>" + e.job_pages + "</b> real job pages → <b>" + e.fresh + "</b> not seen before"); break;
+      case "search": {
+        var sl = e.purpose === "linkedin" ? "LINKEDIN" : e.purpose === "resolve" ? "LOOKUP" : "SEARCH";
+        logLine("search", sl, "<b>" + e.hits + "</b> hits <span class=\"dim\">· " + esc(e.query) + "</span>");
+        break;
+      }
+      case "feed": logLine("search", "BOARD", "<b>" + e.items + "</b> matching listings <span class=\"dim\">· " + esc(e.board) + " (public feed)</span>"); break;
+      case "crawl":
+        if (e.ok) logLine("found", "CRAWL", "<b>" + esc(e.company) + "</b> <span class=\"dim\">(" + esc(e.board) + ")</span> — " + e.jobs + " open roles → <b>" + e.in_scope + "</b> in scope");
+        else logLine("skipped", "CRAWL", "<b>" + esc(e.company) + "</b> <span class=\"dim\">(" + esc(e.board) + ") — job list unavailable this run</span>");
+        break;
+      case "lead":
+        if (e.url) logLine("found", "LEAD", "<b>" + esc(e.company) + "</b> " + esc(e.role) + ' — <span class="dim">found on the employer\'s ' + esc(e.board || "job page") + "</span> → " + '<a href="' + esc(safeUrl(e.url)) + '" target="_blank" rel="noopener noreferrer">' + esc(shortUrl(e.url)) + "</a>");
+        else logLine("skipped", "LEAD", "<b>" + esc(e.company) + "</b> " + esc(e.role) + ' — <span class="dim">no matching page on the employer\'s job systems</span>');
+        break;
+      case "discovered":
+        logLine("found", "FOUND", e.hits + " search hits" + (e.feed_items ? " + " + e.feed_items + " board listings" : "") + (e.leads ? " + " + e.leads + " LinkedIn leads" : "") + (e.crawl_roles ? " + " + e.crawl_roles + " roles from " + e.crawled + " company boards" : "") + " → <b>" + e.job_pages + "</b> candidate postings → <b>" + e.fresh + "</b> not seen before" + (e.triaged ? ' <span class="dim">(' + e.triaged + " dropped on title)</span>" : ""));
+        break;
       case "candidate": {
         var lb = { added: "ADDED", screened: "SCREENED", skipped: "SKIPPED", unverified: "UNVERIFIED", expired: "GONE", error: "ERROR" }[e.outcome] || e.outcome.toUpperCase();
         var who = e.company || e.title ? "<b>" + esc(e.company || "") + "</b> " + esc(e.title || "") + (e.score != null ? " · <b>" + e.score + "</b> " + esc(e.decision || "") : "") + " — " : "";
-        logLine(e.outcome, lb, who + '<span class="dim">' + esc(e.detail || "") + '</span> <a href="' + esc(safeUrl(e.url)) + '" target="_blank" rel="noopener noreferrer">' + esc(shortUrl(e.url)) + "</a>");
+        logLine(e.outcome, lb, who + '<span class="dim">' + esc(e.detail || "") + '</span> <a href="' + esc(safeUrl(e.url)) + '" target="_blank" rel="noopener noreferrer">' + esc((e.board ? e.board + " · " : "") + shortUrl(e.url)) + "</a>");
         break;
       }
       case "error": logLine(e.fatal ? "fatal" : "error", e.fatal ? "STOPPED" : "ERROR", esc(humanizeError(e.message))); break;
-      case "done": logLine("done", "DONE", "Screened <b>" + e.evaluated + "</b>, added <b>" + e.added + "</b> · used " + e.budget_used + " of 44 outbound requests" + (e.status === "error" ? " · <b>ended with an error</b>" : "")); break;
+      case "done": logLine("done", "DONE", "Screened <b>" + e.evaluated + "</b>, added <b>" + e.added + "</b> · used " + e.budget_used + " outbound requests (free plan allows 50)" + (e.status === "error" ? " · <b>ended with an error</b>" : "")); break;
     }
   }
   function startRun() {
     if (runInfo.logging) return;
-    var track = ($("#runTrack [aria-pressed=true]") || {}).getAttribute ? $("#runTrack [aria-pressed=true]").getAttribute("data-track") : "";
-    runInfo.logging = true;
+    var pick = $("#runTrack [aria-pressed=true]");
+    var track = pick ? pick.getAttribute("data-track") : "";
+    // "Both" is two back-to-back runs: each gets a whole invocation's request allowance instead of sharing one.
+    var tracks = track ? [track] : ["italy-remote", "sponsorship"];
+    runInfo.logging = true; runInfo.tab = "runs"; runInfo.detail = null; runInfo.target = null; syncTabs();
     $("#runGo").disabled = true;
     $("#progress").hidden = false;
     $("#consoleBody").innerHTML = "";
-    $("#consoleSub").textContent = "Live run · " + (track || "both tracks");
-    var added = 0;
-    fetch("/api/run", { method: "POST", headers: { Authorization: "Bearer " + S.token, "content-type": "application/json" }, body: JSON.stringify(track ? { track: track } : {}) })
-      .then(function (res) {
-        if (res.status === 401) { var e = new Error("unauthorized"); e.code = 401; throw e; }
-        if (res.status === 409) throw new Error("A run is already in progress — try again in a minute.");
-        if (!res.ok || !res.body) throw new Error("HTTP " + res.status);
-        var reader = res.body.getReader(), dec = new TextDecoder(), buf = "";
-        return (function pump() {
-          return reader.read().then(function (r) {
-            if (r.done) return;
-            buf += dec.decode(r.value, { stream: true });
-            var lines = buf.split("\n"); buf = lines.pop();
-            lines.forEach(function (ln) {
-              if (!ln.trim()) return;
-              try { var ev = JSON.parse(ln); if (ev.type === "done") added = ev.added; handleRunEvent(ev); } catch (x) {}
+    $("#consoleSub").textContent = "Live run · " + (track || "both tracks, one after the other");
+    var added = 0, stop = false;
+    var one = function (t) {
+      return fetch("/api/run", { method: "POST", headers: { Authorization: "Bearer " + S.token, "content-type": "application/json" }, body: JSON.stringify({ track: t }) })
+        .then(function (res) {
+          if (res.status === 401) { var e = new Error("unauthorized"); e.code = 401; throw e; }
+          if (res.status === 409) throw new Error("A run is already in progress — try again in a minute.");
+          if (!res.ok || !res.body) throw new Error("HTTP " + res.status);
+          var reader = res.body.getReader(), dec = new TextDecoder(), buf = "";
+          return (function pump() {
+            return reader.read().then(function (r) {
+              if (r.done) return;
+              buf += dec.decode(r.value, { stream: true });
+              var lines = buf.split("\n"); buf = lines.pop();
+              lines.forEach(function (ln) {
+                if (!ln.trim()) return;
+                try { var ev = JSON.parse(ln); if (ev.type === "done") { added += ev.added; if (ev.status === "error") stop = true; } handleRunEvent(ev); } catch (x) {}
+              });
+              return pump();
             });
-            return pump();
-          });
-        })();
-      })
+          })();
+        });
+    };
+    tracks.reduce(function (p, t) { return p.then(function () { return stop ? null : one(t); }); }, Promise.resolve())
       .catch(function (err) {
         if (err && err.code === 401) { closeConsole(); showLock("Session expired — enter the access key again."); return; }
         logLine("fatal", "STOPPED", esc(err.message));
@@ -752,6 +846,8 @@
         if (act === "close-drawer") { closeDrawer(); return; }
         if (act === "run") { openConsole(true); return; }
         if (act === "history") { openConsole(false); return; }
+        if (act === "boards") { openConsole(false); setTab("boards"); return; }
+        if (act === "runs-back") { runInfo.detail = null; renderConsole(); return; }
         if (act === "export") { exportCsv(); return; }
         if (act === "clear-status") { S.filters.status = ""; refilter(); return; }
         if (act === "clear-filters") { S.filters = { decision: "", track: "", status: "", q: "" }; $("#q").value = ""; refilter(); return; }
@@ -768,6 +864,10 @@
       if (vb) { setView(vb.getAttribute("data-view")); return; }
       var rt = t.closest && t.closest("#runTrack button");
       if (rt) { $$("#runTrack button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === rt)); }); return; }
+      var tab = t.closest && t.closest("#consoleTabs [data-tab]");
+      if (tab) { setTab(tab.getAttribute("data-tab")); return; }
+      var hr = t.closest && t.closest(".hist-row");
+      if (hr && !runInfo.logging) { runInfo.detail = Number(hr.getAttribute("data-run")); renderConsole(); return; }
       var card = t.closest && t.closest(".card");
       if (card && !t.closest("button, a")) { openDrawer(card.getAttribute("data-id")); return; }
       var pl = t.closest && t.closest(".pl-item");
@@ -867,6 +967,7 @@
       if (!$("#console").hidden) { trapTab(e, $("#console")); return; }
       if (S.open) { trapTab(e, $("#drawer")); }
       if (e.key === "Enter" && ae && ae.classList && ae.classList.contains("card")) { e.preventDefault(); openDrawer(ae.getAttribute("data-id")); return; }
+      if (e.key === "Enter" && ae && ae.classList && ae.classList.contains("hist-row") && !runInfo.logging) { e.preventDefault(); runInfo.detail = Number(ae.getAttribute("data-run")); renderConsole(); return; }
       if (typing || e.ctrlKey || e.metaKey || e.altKey || !$("#lock").hidden) return;
       var k = e.key;
       if (k === "/") { e.preventDefault(); $("#q").focus(); }

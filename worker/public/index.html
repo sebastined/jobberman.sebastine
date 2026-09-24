@@ -135,9 +135,13 @@
         <button class="icon-btn" id="consoleClose" type="button" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
       </div>
     </header>
+    <div class="tabs" id="consoleTabs" role="tablist" aria-label="Pipeline views">
+      <button type="button" role="tab" data-tab="runs" aria-selected="true">Runs</button>
+      <button type="button" role="tab" data-tab="boards" aria-selected="false">Boards &amp; yield</button>
+    </div>
     <div class="progress" id="progress" hidden><span></span></div>
     <div class="console-body" id="consoleBody" tabindex="0"></div>
-    <footer class="modal-foot">Each run stays inside Cloudflare's free-plan limit of 50 outbound requests (searches + fetches + screenings), so a run is small by design — coverage builds across the day's runs. Postings are only ever screened from text fetched live from their own ATS page.</footer>
+    <footer class="modal-foot">Each run stays inside Cloudflare's free-plan limit of 50 outbound requests (searches + fetches + screenings), so a run is small by design — coverage builds across the week's runs. Every posting is screened only from text fetched live, right now, from its own job page or public board listing. Nothing here signs in to anything.</footer>
   </div>
 </div>
 

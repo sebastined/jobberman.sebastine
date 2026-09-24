@@ -1,6 +1,7 @@
 import type { Env, RunEvent, Status, Track } from "./types";
 import { APPLIED_STATUSES, STATUSES } from "./types";
-import { getPosting, listPostings, listRuns, runInProgress, seenCount, updatePostingStatus } from "./db";
+import { boardStats, companyCounts, getPosting, getRun, listPostings, listRuns, runInProgress, seenCount, trackerCountsByBoard, updatePostingStatus } from "./db";
+import { BOARD_CATALOG } from "./boards";
 import { runPipeline } from "./pipeline";
 
 const json = (data: unknown, init?: ResponseInit) =>
@@ -29,6 +30,33 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext, u
   if (path === "/api/runs" && req.method === "GET") {
     const [runs, seen] = await Promise.all([listRuns(env, 12), seenCount(env)]);
     return json({ runs, seen_count: seen, server_time: new Date().toISOString() });
+  }
+
+  const runMatch = path.match(/^\/api\/runs\/(\d+)$/);
+  if (runMatch && req.method === "GET") {
+    const run = await getRun(env, Number(runMatch[1]));
+    return run ? json(run) : json({ error: "not found" }, { status: 404 });
+  }
+
+  // Every board the pipeline looks at, with what each has yielded so far.
+  if (path === "/api/boards" && req.method === "GET") {
+    const [stats, inTracker, companies] = await Promise.all([boardStats(env), trackerCountsByBoard(env), companyCounts(env).catch(() => null)]);
+    const byName = new Map(stats.map((s) => [s.board, s]));
+    const boards = BOARD_CATALOG.map((b) => {
+      const s = byName.get(b.name);
+      return {
+        ...b,
+        checked: s?.checked ?? 0,
+        dead: s?.dead ?? 0,
+        unverified: s?.unverified ?? 0,
+        prefiltered: s?.prefiltered ?? 0,
+        screened: s?.screened ?? 0,
+        added: s?.added ?? 0,
+        in_tracker: inTracker[b.name] ?? 0,
+        last_seen: s?.last_seen ?? null,
+      };
+    });
+    return json({ boards, companies });
   }
 
   // Manual run: streams progress as NDJSON so the UI can show it live.

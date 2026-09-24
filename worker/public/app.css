@@ -346,6 +346,12 @@ button.kpi:hover { background: var(--surface-hover); border-color: var(--border-
 .tag-spon { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px 0 7px; border-radius: 999px; font-size: 11.5px; font-weight: 600; color: var(--purple-ink); background: var(--purple-soft); border: 1px solid var(--purple-line); white-space: nowrap; box-shadow: 0 0 18px -6px var(--purple-line); }
 .tag-spon .ic { width: 13px; height: 13px; stroke-width: 2; }
 
+/* where a posting came from: employer page = quiet chip, board listing = dashed, LinkedIn lead = accent */
+.meta .src { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 6px; font-size: 11px; font-weight: 550; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--border); max-width: 100%; }
+.meta .src.bd { border-style: dashed; color: var(--ink-3); }
+.meta .src.li { color: var(--accent-text); border-color: color-mix(in srgb, var(--accent-text) 38%, transparent); background: color-mix(in srgb, var(--accent-text) 9%, transparent); }
+.row .meta .src { align-self: flex-start; margin-bottom: 2px; }
+
 .mini { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-2); font-size: 11.5px; font-weight: 550; }
 .mini:hover { background: var(--surface-hover); color: var(--ink); border-color: var(--border-strong); }
 .mini .ic { width: 13px; height: 13px; }
@@ -469,6 +475,27 @@ body.is-dragging .col-empty { border-color: var(--accent); color: var(--ink-2); 
 .hist .st { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
 .hist .st i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
 .hist .notes { color: var(--ink-3); overflow-wrap: anywhere; font-family: var(--mono); font-size: 11px; }
+.hist-row { cursor: pointer; transition: background 0.15s; }
+.hist-row:hover td, .hist-row:focus-visible td { background: color-mix(in srgb, var(--accent-text) 6%, transparent); }
+.hist-row:focus-visible { outline: 2px solid var(--accent-text); outline-offset: -2px; }
+.log.feed .lb, .log.found .lb, .log.search .lb { color: var(--accent-text); }
+.log.skipped .lb, .log.expired .lb, .log.unverified .lb { color: var(--ink-3); }
+.tabs { display: flex; gap: 4px; padding: 0 20px; border-bottom: 1px solid var(--border); }
+.tabs button { height: 34px; padding: 0 12px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ink-3); font-size: 13px; font-weight: 550; cursor: pointer; }
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent-text); }
+.tabs button:focus-visible { outline: 2px solid var(--accent-text); outline-offset: -2px; border-radius: 6px; }
+.btn.back { height: 28px; padding: 0 10px; font-size: 12px; margin: 8px 0 4px; font-family: var(--font); }
+.muted-p { font-family: var(--font); color: var(--ink-3); padding: 18px 0; }
+.boards-sum { font-family: var(--font); color: var(--ink-2); font-size: 13px; padding: 10px 0 2px; }
+.boards-sum b { color: var(--ink); }
+.bd-h { font-family: var(--font); font-size: 13px; margin: 16px 0 2px; color: var(--ink); letter-spacing: -0.005em; }
+.bd-sub { font-family: var(--font); color: var(--ink-3); font-size: 12px; line-height: 1.5; margin-bottom: 4px; }
+.boards td, .boards th { padding-right: 14px; }
+.boards td:first-child { width: 52%; font-family: var(--font); }
+.boards td b { color: var(--ink); font-weight: 600; }
+.boards td { font-variant-numeric: tabular-nums; }
+.boards .zero { color: var(--ink-3); }
 
 /* ---------- toasts & tooltip ---------- */
 .toasts { position: fixed; z-index: 80; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: min(460px, calc(100vw - 24px)); }
