@@ -6,15 +6,17 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "typecheck": "tsc --noEmit",
+    "types": "wrangler types --strict-vars false --include-runtime false",
+    "typecheck": "wrangler types --strict-vars false --include-runtime false --check && tsc --noEmit",
     "db:init": "wrangler d1 execute jobberman --remote --file=./schema.sql",
     "db:init:local": "wrangler d1 execute jobberman --local --file=./schema.sql",
     "db:seed": "wrangler d1 execute jobberman --remote --file=./seed.sql",
     "tail": "wrangler tail"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20250918.0",
-    "typescript": "^5.7.0",
-    "wrangler": "^4.0.0"
+    "@cloudflare/workers-types": "^5.20260928.1",
+    "@types/node": "^26.6.3",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.142.0"
   }
 }

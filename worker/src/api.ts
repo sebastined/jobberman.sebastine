@@ -1,4 +1,4 @@
-import type { Env, RunEvent, Status, Track } from "./types";
+import type { RunEvent, Status, Track } from "./types";
 import { APPLIED_STATUSES, STATUSES } from "./types";
 import { boardStats, companyCounts, getPosting, getRun, listPostings, listRuns, runInProgress, seenCount, trackerCountsByBoard, updatePostingStatus } from "./db";
 import { BOARD_CATALOG } from "./boards";

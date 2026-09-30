@@ -1,13 +1,3 @@
-export interface Env {
-  DB: D1Database;
-  ANTHROPIC_API_KEY: string;
-  BRAVE_SEARCH_API_KEY: string;
-  /** Shared secret the tracker UI sends as `Authorization: Bearer <token>`. Unset = every API call is refused. */
-  TRACKER_TOKEN: string;
-  /** Override only for local testing against a mock (defaults to https://api.anthropic.com). */
-  ANTHROPIC_BASE_URL?: string;
-}
-
 export type Track = "italy-remote" | "sponsorship";
 export type Decision = "apply" | "review" | "skip";
 /**

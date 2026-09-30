@@ -5,6 +5,8 @@
 // Every endpoint below is the ATS's public, no-sign-in job list.
 
 import type { Ats } from "./canon";
+import { discard, readText, timedFetch } from "./http";
+import { errorMessage, logWarn } from "./log";
 import { htmlToText } from "./sources";
 import { titleTriage } from "./rules";
 import type { Track } from "./types";
@@ -37,13 +39,18 @@ const UA = { "User-Agent": "Mozilla/5.0 (compatible; JobbermanBot/1.0; personal 
 type Fetched = { status: "ok"; text: string } | { status: "gone" } | { status: "fail" };
 
 async function getText(url: string, init: RequestInit = {}): Promise<Fetched> {
-  const res = await fetch(url, { ...init, headers: { ...UA, ...((init.headers as Record<string, string>) || {}) }, signal: AbortSignal.timeout(12_000) });
-  if (res.status === 404 || res.status === 410) return { status: "gone" };
-  if (!res.ok) return { status: "fail" };
-  const len = Number(res.headers.get("content-length") || 0);
-  if (len > MAX_BYTES) return { status: "fail" };
-  const text = await res.text();
-  return text.length > MAX_BYTES ? { status: "fail" } : { status: "ok", text };
+  const res = await timedFetch(url, { ...init, headers: { ...UA, ...((init.headers as Record<string, string>) || {}) } }, 12_000);
+  if (res.status === 404 || res.status === 410) {
+    await discard(res);
+    return { status: "gone" };
+  }
+  if (!res.ok) {
+    await discard(res);
+    return { status: "fail" };
+  }
+  // Streamed and capped: a board larger than MAX_BYTES is skipped without ever being held in memory.
+  const text = await readText(res, MAX_BYTES);
+  return text === null ? { status: "fail" } : { status: "ok", text };
 }
 
 function parseJson(text: string): any | null {
@@ -80,7 +87,7 @@ export async function crawlBoard(t: CrawlTarget): Promise<CrawlResult> {
         return { status: "fail" };
     }
   } catch (err) {
-    console.error(`crawl ${t.ats}/${t.slug} failed: ${(err as Error).message}`);
+    logWarn("crawl_failed", { ats: t.ats, slug: t.slug, error: errorMessage(err) });
     return { status: "fail" };
   }
 }

@@ -1,9 +1,16 @@
-import type { BoardStat, Env, Posting, RunEvent, RunRow, SourceKind, Status, Track } from "./types";
+import type { BoardStat, Posting, RunEvent, RunRow, SourceKind, Status, Track } from "./types";
 import { LINKEDIN_BOARD } from "./boards";
 import { classifyJobUrl, type Ats } from "./canon";
 import { CRAWLABLE } from "./crawl";
 
-function rowToPosting(row: any): Posting {
+/** A postings row as D1 returns it: list fields are JSON text, the flag is 0/1. */
+type PostingRow = Omit<Posting, "matched_requirements" | "gaps" | "sponsorship_verified"> & {
+  matched_requirements: string | null;
+  gaps: string | null;
+  sponsorship_verified: number;
+};
+
+function rowToPosting(row: PostingRow): Posting {
   return {
     ...row,
     matched_requirements: JSON.parse(row.matched_requirements || "[]"),
@@ -19,12 +26,12 @@ export async function postingExists(env: Env, company: string, title: string): P
 }
 
 export async function listPostings(env: Env): Promise<Posting[]> {
-  const { results } = await env.DB.prepare("SELECT * FROM postings ORDER BY score DESC, date_found DESC LIMIT 500").all();
-  return (results || []).map(rowToPosting);
+  const { results } = await env.DB.prepare("SELECT * FROM postings ORDER BY score DESC, date_found DESC LIMIT 500").all<PostingRow>();
+  return results.map(rowToPosting);
 }
 
 export async function getPosting(env: Env, id: string): Promise<Posting | null> {
-  const row = await env.DB.prepare("SELECT * FROM postings WHERE id = ?").bind(id).first();
+  const row = await env.DB.prepare("SELECT * FROM postings WHERE id = ?").bind(id).first<PostingRow>();
   return row ? rowToPosting(row) : null;
 }
 
@@ -129,15 +136,15 @@ export async function boardStats(env: Env): Promise<BoardStat[]> {
        FROM seen s
       WHERE s.board IS NOT NULL
       GROUP BY s.board`,
-  ).all();
-  return (results || []) as unknown as BoardStat[];
+  ).all<BoardStat>();
+  return results;
 }
 
 /** Postings in the tracker per board, including ones found before boards were tracked (backfilled from the URL). */
 export async function trackerCountsByBoard(env: Env): Promise<Record<string, number>> {
-  const { results } = await env.DB.prepare("SELECT source_board AS board, COUNT(*) AS n FROM postings WHERE source_board IS NOT NULL GROUP BY source_board").all();
+  const { results } = await env.DB.prepare("SELECT source_board AS board, COUNT(*) AS n FROM postings WHERE source_board IS NOT NULL GROUP BY source_board").all<{ board: string; n: number }>();
   const out: Record<string, number> = {};
-  for (const r of (results || []) as unknown as { board: string; n: number }[]) out[r.board] = r.n;
+  for (const r of results) out[r.board] = r.n;
   // Roles reached through a LinkedIn lead are filed under their employer's job system; count them here too.
   const li = await env.DB.prepare("SELECT COUNT(*) AS n FROM postings WHERE source_kind = 'linkedin'").first<{ n: number }>();
   out[LINKEDIN_BOARD] = li?.n ?? 0;
@@ -178,8 +185,8 @@ export async function runInProgress(env: Env): Promise<boolean> {
 
 export async function listRuns(env: Env, limit = 12): Promise<RunRow[]> {
   await cleanupStaleRuns(env);
-  const { results } = await env.DB.prepare("SELECT id, started_at, finished_at, status, postings_added, postings_evaluated, notes FROM runs ORDER BY id DESC LIMIT ?").bind(limit).all();
-  return (results || []) as unknown as RunRow[];
+  const { results } = await env.DB.prepare("SELECT id, started_at, finished_at, status, postings_added, postings_evaluated, notes FROM runs ORDER BY id DESC LIMIT ?").bind(limit).all<RunRow>();
+  return results;
 }
 
 // ---- company job boards (crawl queue) ------------------------------------------------------------
@@ -219,9 +226,9 @@ export async function upsertCompanies(env: Env, rows: { ats: Ats; slug: string; 
 export async function seedCompaniesIfEmpty(env: Env): Promise<number> {
   const have = await env.DB.prepare("SELECT COUNT(*) AS n FROM companies").first<{ n: number }>();
   if ((have?.n ?? 0) > 0) return 0;
-  const { results } = await env.DB.prepare("SELECT source_url, 0 AS sp FROM seen WHERE source_url LIKE 'http%' UNION ALL SELECT source_url, CASE WHEN track = 'sponsorship' THEN 1 ELSE 0 END AS sp FROM postings WHERE source_url LIKE 'http%'").all();
+  const { results } = await env.DB.prepare("SELECT source_url, 0 AS sp FROM seen WHERE source_url LIKE 'http%' UNION ALL SELECT source_url, CASE WHEN track = 'sponsorship' THEN 1 ELSE 0 END AS sp FROM postings WHERE source_url LIKE 'http%'").all<{ source_url: string; sp: number }>();
   const rows: { ats: Ats; slug: string; eu?: boolean; sponsors?: boolean }[] = [];
-  for (const r of (results || []) as unknown as { source_url: string; sp: number }[]) {
+  for (const r of results) {
     const info = classifyJobUrl(r.source_url);
     if (info) rows.push({ ats: info.ats, slug: info.company, eu: info.eu, sponsors: r.sp === 1 });
   }
@@ -248,8 +255,8 @@ export async function pickCompaniesToCrawl(env: Env, n: number, track: Track): P
       LIMIT ?`,
   )
     .bind(...CRAWLABLE, new Date(now - 6 * 3600_000).toISOString(), new Date(now - 24 * 3600_000).toISOString(), n)
-    .all();
-  return (results || []) as unknown as CompanyRow[];
+    .all<CompanyRow>();
+  return results;
 }
 
 export async function markCrawled(env: Env, updates: { key: string; status: "ok" | "gone" | "fail"; openRoles: number }[]): Promise<void> {
@@ -275,7 +282,7 @@ export async function companyCounts(env: Env): Promise<{ known: number; crawled:
 }
 
 export async function getRun(env: Env, id: number): Promise<(RunRow & { log: RunEvent[] }) | null> {
-  const row = (await env.DB.prepare("SELECT * FROM runs WHERE id = ?").bind(id).first()) as any;
+  const row = await env.DB.prepare("SELECT * FROM runs WHERE id = ?").bind(id).first<RunRow & { log: string | null }>();
   if (!row) return null;
   let log: RunEvent[] = [];
   try {

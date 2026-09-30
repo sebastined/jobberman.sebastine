@@ -3,6 +3,8 @@
 // only ever screened from text fetched live from its primary source this run.
 
 import { FatalApiError } from "./budget";
+import { discard, readJson, readText, timedFetch } from "./http";
+import { errorMessage, logWarn } from "./log";
 import type { JobUrlInfo } from "./canon";
 
 export interface SearchHit {
@@ -20,19 +22,20 @@ export interface SearchHit {
 export async function braveSearch(apiKey: string, query: string, count = 20): Promise<SearchHit[]> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count}`, {
+      const res = await timedFetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count}`, {
         headers: { Accept: "application/json", "X-Subscription-Token": apiKey },
-        signal: AbortSignal.timeout(15_000),
       });
       if (res.status === 401 || res.status === 403 || res.status === 422 || res.status === 429) {
+        await discard(res);
         throw new FatalApiError(`Brave Search rejected the request (HTTP ${res.status}) — check the API key / monthly quota`);
       }
       if (!res.ok) {
+        await discard(res);
         if (res.status >= 500 && attempt === 0) continue;
         return [];
       }
-      const data = (await res.json()) as any;
-      const results: any[] = data?.web?.results ?? [];
+      const data = await readJson(res, 2_000_000);
+      const results: any[] = Array.isArray(data?.web?.results) ? data.web.results : [];
       return results.map((r) => {
         const t = r.page_age ? Date.parse(r.page_age) : NaN;
         return { title: String(r.title ?? ""), url: String(r.url ?? ""), description: String(r.description ?? ""), pageAgeDays: Number.isFinite(t) ? Math.max(0, Math.round((Date.now() - t) / 86400000)) : null };
@@ -86,7 +89,7 @@ export async function fetchPosting(info: JobUrlInfo): Promise<Fetched | null> {
   } catch (err) {
     if (err instanceof GoneError) return { text: "", gone: true };
     if (err instanceof BlockedError) return { text: "", blocked: true };
-    console.error(`fetchPosting failed for ${info.canonical}: ${(err as Error).message}`);
+    logWarn("fetch_posting_failed", { url: info.canonical, error: errorMessage(err) });
     return null;
   }
 }
@@ -102,10 +105,13 @@ function assertLive(res: Response): void {
 }
 
 async function getJson(url: string): Promise<any | null> {
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const res = await timedFetch(url, { headers: { Accept: "application/json" } });
   assertLive(res);
-  if (!res.ok) return null;
-  return res.json();
+  if (!res.ok) {
+    await discard(res);
+    return null;
+  }
+  return readJson(res, 2_000_000);
 }
 
 async function fromGreenhouse(info: JobUrlInfo): Promise<Fetched | null> {
@@ -136,7 +142,7 @@ const ASHBY_QUERY =
   "query ApiJobPosting($organizationHostedJobsPageName: String!, $jobPostingId: String!) { jobPosting(organizationHostedJobsPageName: $organizationHostedJobsPageName, jobPostingId: $jobPostingId) { id title locationName workplaceType employmentType descriptionHtml isListed } }";
 
 async function fromAshby(info: JobUrlInfo): Promise<Fetched | null> {
-  const res = await fetch("https://jobs.ashbyhq.com/api/non-user-graphql?op=ApiJobPosting", {
+  const res = await timedFetch("https://jobs.ashbyhq.com/api/non-user-graphql?op=ApiJobPosting", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -146,8 +152,11 @@ async function fromAshby(info: JobUrlInfo): Promise<Fetched | null> {
     }),
   });
   assertLive(res);
-  if (!res.ok) return null;
-  const p = ((await res.json()) as any)?.data?.jobPosting;
+  if (!res.ok) {
+    await discard(res);
+    return null;
+  }
+  const p = (await readJson(res, 2_000_000))?.data?.jobPosting;
   // Ashby answers 200 with a null jobPosting once a posting has been taken down.
   if (!p) throw new GoneError("null jobPosting");
   const text = [p.title, [p.locationName, p.workplaceType, p.employmentType].filter(Boolean).join(" · "), "", htmlToText(p.descriptionHtml ?? "")].join("\n");
@@ -189,11 +198,17 @@ async function fromWorkable(info: JobUrlInfo): Promise<Fetched | null> {
 /** Workday's public cxs job-detail endpoint. Some tenants answer 403; that's "couldn't verify", never "gone". */
 async function fromWorkday(info: JobUrlInfo): Promise<Fetched | null> {
   const host = new URL(info.canonical).host;
-  const res = await fetch(`https://${host}/wday/cxs/${info.company}/${info.meta?.site}/job/${info.meta?.rest}`, { headers: { Accept: "application/json" } });
+  const res = await timedFetch(`https://${host}/wday/cxs/${info.company}/${info.meta?.site}/job/${info.meta?.rest}`, { headers: { Accept: "application/json" } });
   assertLive(res);
-  if (res.status === 401 || res.status === 403) throw new BlockedError(String(res.status));
-  if (!res.ok) return null;
-  const p = ((await res.json()) as any)?.jobPostingInfo;
+  if (res.status === 401 || res.status === 403) {
+    await discard(res);
+    throw new BlockedError(String(res.status));
+  }
+  if (!res.ok) {
+    await discard(res);
+    return null;
+  }
+  const p = (await readJson(res, 2_000_000))?.jobPostingInfo;
   if (!p) return null;
   const loc = [p.location, ...(p.additionalLocations || []), p.country?.descriptor, p.remoteType].filter(Boolean).join(" · ");
   const text = [p.title, loc, p.timeType ? `Time type: ${p.timeType}` : "", "", htmlToText(p.jobDescription ?? "")].join("\n");
@@ -202,10 +217,13 @@ async function fromWorkday(info: JobUrlInfo): Promise<Fetched | null> {
 
 /** The Next.js data blob a career page ships with, or null if the page isn't one / is a plain error. */
 async function nextData(url: string): Promise<any | null> {
-  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; JobbermanBot/1.0)", "Accept-Language": "en" } });
+  const res = await timedFetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; JobbermanBot/1.0)", "Accept-Language": "en" } });
   assertLive(res);
-  if (!res.ok) return null;
-  const html = (await res.text()).slice(0, 900_000);
+  if (!res.ok) {
+    await discard(res);
+    return null;
+  }
+  const html = (await readText(res, 900_000, true)) ?? "";
   const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
   if (!m) return null;
   try {
@@ -254,12 +272,14 @@ const CLOSED_PAGE = /no longer (exists|available|open|accepting)|has (been )?(fi
 
 /** Personio / Teamtailor / Recruitee / Breezy / JazzHR / Pinpoint / Jobvite / BambooHR: prefer the page's own JobPosting JSON-LD, else its readable text. */
 async function fromHtml(url: string): Promise<Fetched | null> {
-  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; JobbermanBot/1.0)", "Accept-Language": "en" } });
+  const res = await timedFetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; JobbermanBot/1.0)", "Accept-Language": "en" } });
   assertLive(res);
-  if (!res.ok) return null;
   const ct = res.headers.get("content-type") || "";
-  if (!ct.includes("html")) return null;
-  const html = (await res.text()).slice(0, 600_000);
+  if (!res.ok || !ct.includes("html")) {
+    await discard(res);
+    return null;
+  }
+  const html = (await readText(res, 600_000, true)) ?? "";
 
   const ld = extractJobPostingLd(html);
   if (ld) return ld;

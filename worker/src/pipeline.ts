@@ -1,4 +1,4 @@
-import type { Env, RunEvent, SourceKind, Track } from "./types";
+import type { RunEvent, SourceKind, Track } from "./types";
 import { Budget, FatalApiError, sleep } from "./budget";
 import { BOARD_NAMES, canonicalUrl, classifyJobUrl, type Ats, type JobUrlInfo } from "./canon";
 import { CRAWLABLE, crawlBoard, inScope, type BoardJob } from "./crawl";
@@ -8,6 +8,7 @@ import { companyMatches, isResolvable, parseLinkedInTitle, roleMatches, searchab
 import { screenPosting } from "./claude";
 import { freshnessRank, hintRank, judge, quickReject, titleTriage } from "./rules";
 import { LINKEDIN_BOARD } from "./boards";
+import { errorMessage, logError, logWarn } from "./log";
 import { boardStats, bumpCompanyAdded, companyKey, cleanupStaleRuns, finishRun, getKnownUrls, insertPosting, markCompanySponsors, markCrawled, pickCompaniesToCrawl, postingExists, saveSeenBatch, seedCompaniesIfEmpty, startRun, upsertCompanies, type CompanyRow, type SeenRow } from "./db";
 
 // ---- Discovery queries -----------------------------------------------------
@@ -181,7 +182,7 @@ export async function runPipeline(env: Env, opts: RunOptions = {}): Promise<RunS
   try {
     await finishRun(env, runId, status, added, evaluated, notes.join(" | "), log);
   } catch (err) {
-    console.error("finishRun failed:", (err as Error).message);
+    logError("finish_run_failed", { run_id: runId, error: errorMessage(err) });
   }
   emit({ type: "done", run_id: runId, status, evaluated, added, budget_used: budgetUsed, notes });
   return { run_id: runId, status, evaluated, added, budget_used: budgetUsed, notes };
@@ -282,7 +283,7 @@ async function runTrack(
     try {
       items = await feed.fetch(variant);
     } catch (err) {
-      console.error(`feed ${feed.id} failed: ${(err as Error).message}`);
+      logWarn("feed_failed", { feed: feed.id, error: errorMessage(err) });
     }
     stats.feedItems += items.length;
     emit({ type: "feed", track, board: feed.board, items: items.length });
@@ -364,8 +365,8 @@ async function runTrack(
   // 3b. Company boards: crawl the job lists of companies we've learned about (new ones first). One request returns
   // every role a company has open right now — live by construction — with structured location/remote data that
   // rules out most postings for free, before any per-posting fetch or screening.
-  await seedCompaniesIfEmpty(env).catch((e) => console.error("seedCompanies failed:", (e as Error).message));
-  await upsertCompanies(env, learned).catch((e) => console.error("upsertCompanies failed:", (e as Error).message));
+  await seedCompaniesIfEmpty(env).catch((e) => logError("seed_companies_failed", { error: errorMessage(e) }));
+  await upsertCompanies(env, learned).catch((e) => logError("upsert_companies_failed", { error: errorMessage(e) }));
   const crawlUpdates: { key: string; status: "ok" | "gone" | "fail"; openRoles: number }[] = [];
   const roleGroups = new Map<string, Candidate>();
   // What each crawled company has open right now (canonical URL -> its list entry): the free liveness check below.
@@ -425,7 +426,7 @@ async function runTrack(
         }
       }
     }
-    await markCrawled(env, crawlUpdates.splice(0)).catch((e) => console.error("markCrawled failed:", (e as Error).message));
+    await markCrawled(env, crawlUpdates.splice(0)).catch((e) => logError("mark_crawled_failed", { error: errorMessage(e) }));
     // A thin pool of candidates (common on the sponsorship track, where most postings never mention sponsorship) means
     // spare budget is better spent reading more company boards than idling.
     if (stats.crawled >= crawlCap || candidates.size >= maxScreens * 2 || budget.left <= reserve) break;
@@ -623,7 +624,7 @@ async function runTrack(
       emit({ type: "candidate", track, url: c.url, outcome: "added", company, title, score: r.score, decision: verdict.decision, detail: r.one_line_reason, board: c.board });
     }
   } finally {
-    await saveSeenBatch(env, pending).catch((e) => console.error("saveSeenBatch failed:", (e as Error).message));
+    await saveSeenBatch(env, pending).catch((e) => logError("save_seen_failed", { error: errorMessage(e) }));
   }
   if (budgetHit) notes.push(`${track}: subrequest budget exhausted`);
 

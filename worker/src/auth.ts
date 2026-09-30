@@ -1,5 +1,3 @@
-import type { Env } from "./types";
-
 /**
  * Bearer-token gate for every /api/* route. Both sides are hashed first so the
  * comparison is fixed-length and constant-time regardless of what the caller sends.

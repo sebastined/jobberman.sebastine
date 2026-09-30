@@ -3,6 +3,7 @@
 // (not the employer's own page) everywhere they surface. They only feed the Italy-remote track: the
 // sponsorship track needs the employer's own page, so it never uses these.
 
+import { discard, readJson, readText, timedFetch } from "./http";
 import { htmlToText } from "./sources";
 
 export interface FeedItem {
@@ -46,13 +47,12 @@ function tidy(items: FeedItem[], max = 14): FeedItem[] {
 }
 
 async function getJson(url: string): Promise<any | null> {
-  const res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(12_000) });
-  if (!res.ok) return null;
-  try {
-    return await res.json();
-  } catch {
+  const res = await timedFetch(url, { headers: UA }, 12_000);
+  if (!res.ok) {
+    await discard(res);
     return null;
   }
+  return readJson(res, 3_000_000);
 }
 
 function compose(board: string, title: string, company: string, location: string, extra: string, html: string): string {
@@ -148,9 +148,12 @@ export const FEEDS: FeedDef[] = [
     board: "We Work Remotely",
     note: "RSS (DevOps & Sysadmin category)",
     async fetch() {
-      const res = await fetch("https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss", { headers: UA, signal: AbortSignal.timeout(12_000) });
-      if (!res.ok) return [];
-      const xml = await res.text();
+      const res = await timedFetch("https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss", { headers: UA }, 12_000);
+      if (!res.ok) {
+        await discard(res);
+        return [];
+      }
+      const xml = (await readText(res, 1_000_000, true)) ?? "";
       const items: FeedItem[] = [];
       for (const m of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
         const b = m[1];
@@ -221,9 +224,12 @@ FEEDS.push(
     board: "Jobspresso",
     note: "RSS of remote jobs",
     async fetch() {
-      const res = await fetch("https://jobspresso.co/feed/?post_type=job_listing", { headers: UA, signal: AbortSignal.timeout(12_000) });
-      if (!res.ok) return [];
-      const xml = await res.text();
+      const res = await timedFetch("https://jobspresso.co/feed/?post_type=job_listing", { headers: UA }, 12_000);
+      if (!res.ok) {
+        await discard(res);
+        return [];
+      }
+      const xml = (await readText(res, 1_000_000, true)) ?? "";
       const items: FeedItem[] = [];
       for (const m of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
         const b = m[1];

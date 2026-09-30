@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "jobberman",
   "main": "src/index.ts",
-  "compatibility_date": "2026-09-01",
+  "compatibility_date": "2026-09-26",
   "compatibility_flags": ["nodejs_compat"],
 
   // The "Mr Sebastine" account — where the sebastine.com zone lives. (Workers custom domains
@@ -10,8 +10,8 @@
   // token can see two accounts and wrangler can't pick one non-interactively.
   "account_id": "2e8613c8e1d71d6a8668e92d12f7d05e",
 
-  // Preview URLs off so there's a single surface to protect.
-  "workers_dev": true,
+  // The custom domain is the only public surface: no workers.dev alias, no preview URLs.
+  "workers_dev": false,
   "preview_urls": false,
 
   "routes": [{ "pattern": "jobberman.sebastine.com", "custom_domain": true }],
@@ -32,12 +32,28 @@
     }
   ],
 
+  // Static UI. Only /api/* runs the Worker; everything else is served straight from the asset store
+  // (no invocation, no CPU), with the headers in public/_headers.
   "assets": {
     "directory": "./public",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
   },
 
+  // Set with `wrangler secret put <NAME>`; declared here so `wrangler types` types them and local dev warns when one is missing.
+  "secrets": {
+    "required": ["ANTHROPIC_API_KEY", "BRAVE_SEARCH_API_KEY", "TRACKER_TOKEN"]
+  },
+
+  "vars": {
+    // Empty = api.anthropic.com. Only local testing overrides this (in .dev.vars) to point at a mock.
+    "ANTHROPIC_BASE_URL": ""
+  },
+
+  // Full logs (structured JSON from src/log.ts); traces sampled, since a run makes dozens of subrequests.
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true },
+    "traces": { "enabled": true, "head_sampling_rate": 0.25 }
   }
 }
