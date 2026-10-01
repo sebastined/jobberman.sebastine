@@ -9,6 +9,13 @@ const US_ONLY =
   /\b(u\.?s\.?[- ]only|united states only|us[- ]based only|remote[,\s(-]+(?:us|usa|u\.s\.|united states)\b|must (?:be|reside|live)[^.]{0,60}(?:united states|u\.s\.)|(?:authorized|eligible|legally entitled) to work in the (?:united states|u\.s\.|us)\b|us work authorization|(?:united states|u\.s\.) citizen)/i;
 const CANADA_ONLY = /\b(remote[,\s(-]+canada\b|canada[- ]only|must (?:be|reside|live)[^.]{0,60}canada|authorized to work in canada)\b/i;
 const REMOTE_SIGNAL = /\bremote(?:ly)?\b|work(?:ing)? from (?:home|anywhere)|\bwfh\b|home[- ]?office|tele(?:work|commut)|smart[- ]?working|lavoro (?:da )?remoto|distributed team|fully distributed|virtual (?:position|role)/i;
+// Africa-remote track: worldwide/anywhere remote, or explicitly Nigeria/Ghana/South Africa/Egypt.
+const AFRICA_SIGNAL =
+  /\b(nigeria|nigerian|lagos|abuja|ghana|ghanaian|accra|kumasi|south[- ]africa|johannesburg|cape town|pretoria|durban|egypt|egyptian|cairo|alexandria|africa|african|worldwide|anywhere in the world|global(?:ly)? remote|work from anywhere|fully distributed)\b/i;
+// A posting restricted to a specific other region (and silent on Africa/worldwide) doesn't qualify for that track.
+const EUROPE_ONLY =
+  /\b(eu[- ]only|europe[- ]only|european union only|remote[,\s(-]+(?:eu|europe)\b|must (?:be|reside|live)[^.]{0,60}europe|(?:authorized|eligible|legally entitled) to work in (?:the eu|europe)\b|eu work authorization|eu citizenship)/i;
+const UK_ONLY = /\b(uk[- ]only|united kingdom only|remote[,\s(-]+(?:uk|united kingdom)\b|must (?:be|reside|live)[^.]{0,60}(?:uk|united kingdom)|authorized to work in the uk\b)/i;
 // Explicit denials ("we do not sponsor", "Visa Sponsorship Available: No", "unable to consider candidates who require sponsorship").
 const SPONSOR_DENIED =
   /\b(?:do(?:es)? not|don'?t|doesn'?t|cannot|can'?t|unable to|not able to|will not|won'?t|not (?:currently )?in a position to)\s+(?:offer\s+|provide\s+|consider\s+(?:candidates\s+)?(?:who\s+)?(?:require\s+)?)?(?:visa\s+|immigration\s+|employment\s+)?sponsor|sponsorship\s+available:?\s*no\b|(?:no|without)\s+(?:visa\s+|immigration\s+)?sponsorship\s+(?:is\s+)?(?:available|offered|provided)|unable to consider candidates who require|not eligible for (?:visa\s+)?sponsorship/i;
@@ -28,6 +35,15 @@ export function quickReject(track: Track, text: string, opts: { remoteBoard?: bo
   }
   // An on-site or hybrid role that never says "remote" anywhere cannot be worked from Italy (remote job boards are exempt: remote is their premise).
   if (!opts.remoteBoard && !REMOTE_SIGNAL.test(text)) return "no remote-work language anywhere in the posting (on-site or hybrid role)";
+  if (track === "africa-remote") {
+    if (!AFRICA_SIGNAL.test(text)) {
+      if (US_ONLY.test(text)) return "US-only posting with no Africa/worldwide eligibility";
+      if (CANADA_ONLY.test(text)) return "Canada-only posting with no Africa/worldwide eligibility";
+      if (EUROPE_ONLY.test(text)) return "Europe/EU-only posting with no Africa/worldwide eligibility";
+      if (UK_ONLY.test(text)) return "UK-only posting with no Africa/worldwide eligibility";
+    }
+    return null;
+  }
   if (!EUROPE_SIGNAL.test(text)) {
     if (US_ONLY.test(text)) return "US-only posting with no Europe/Italy/EMEA eligibility";
     if (CANADA_ONLY.test(text)) return "Canada-only posting with no Europe/Italy/EMEA eligibility";
@@ -63,7 +79,7 @@ export function hintRank(title: string): number {
   if (TITLE_STRONG.test(t)) r += 4;
   if (/cloud|devsecops|sre\b|reliability|devops|platform|infrastructure|kubernetes/i.test(t)) r += 2;
   if (/\b(senior|sr\.?|staff|lead|principal)\b/i.test(t)) r += 1;
-  if (/italy|italia|europe|emea|\beu\b|worldwide|anywhere|remote/i.test(t)) r += 2;
+  if (/italy|italia|europe|emea|\beu\b|worldwide|anywhere|remote|nigeria|ghana|south[- ]africa|egypt|africa/i.test(t)) r += 2;
   if (/united states|\busa?\b|u\.s\.|canada|india|philippines|latam|\bus\b/i.test(t)) r -= 3;
   // "junior" is deliberately not penalised: junior/mid DevOps roles are in scope.
   if (/\b(intern|graduate|trainee|director|vp|head of|chief)\b/i.test(t)) r -= 3;
@@ -106,7 +122,9 @@ export function evidenceInText(evidence: string, text: string): boolean {
 }
 
 const APPLY_MIN = 75;
-const FLOOR: Record<Track, number> = { "italy-remote": 55, sponsorship: 60 };
+// africa-remote's floor equals APPLY_MIN (added 2026-10-01 at the candidate's request: only score >= 75 for this
+// track, no lower "review" tier) — the other two tracks keep their existing floors unchanged.
+const FLOOR: Record<Track, number> = { "italy-remote": 55, sponsorship: 60, "africa-remote": 75 };
 
 export interface Judged {
   result: ScreenResult;
@@ -123,7 +141,9 @@ export function judge(track: Track, result: ScreenResult, postingText: string): 
   }
 
   let decision: Decision;
-  if (result.hard_filter_failures.length > 0 || (track === "italy-remote" && result.remote_eligibility === "not_eligible")) {
+  // remote_eligibility only applies to the location-based tracks — sponsorship's location check is the
+  // verified-sponsorship gate below, not this field.
+  if (result.hard_filter_failures.length > 0 || (track !== "sponsorship" && result.remote_eligibility === "not_eligible")) {
     decision = "skip";
   } else if (track === "sponsorship" && !sponsorshipVerified) {
     decision = "skip";

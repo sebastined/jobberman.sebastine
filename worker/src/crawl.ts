@@ -281,6 +281,25 @@ export function italyEligibility(j: BoardJob): string | null {
   return null;
 }
 
+// Region-wide wording that admits a candidate based in Nigeria, Ghana, South Africa, or Egypt.
+const AFRICA_REGION_WIDE =
+  /worldwide|anywhere|global|africa|african|nigeria|nigerian|lagos|abuja|ghana|ghanaian|accra|kumasi|south[- ]africa|johannesburg|cape town|pretoria|durban|egypt|egyptian|cairo|alexandria/i;
+
+/**
+ * A reason the role can't work for a candidate based in Nigeria, Ghana, South Africa, or Egypt, or null.
+ * Same permissive/strict shape as italyEligibility: vague ("Remote") passes, a list of specific other
+ * countries (even if one of them says "remote") means "residents of those countries only".
+ */
+export function africaEligibility(j: BoardJob): string | null {
+  const loc = j.location.trim();
+  if (j.remote === false) return "on-site or hybrid role";
+  const remoteish = j.remote === true || /\bremote\b|\banywhere\b|\bworldwide\b|\bdistributed\b|home[- ]?based|work from home/i.test(loc + " " + j.title);
+  if (!remoteish) return "no remote option listed";
+  const specific = loc.replace(GENERIC_WORDS, "").replace(/[^a-z]/gi, "");
+  if (specific && !AFRICA_REGION_WIDE.test(loc)) return "remote only within specific countries, none of them Nigeria/Ghana/South Africa/Egypt";
+  return null;
+}
+
 const SPONSOR_TARGET =
   /united states|\busa?\b|u\.s\.|canada|united kingdom|\buk\b|england|scotland|wales|ireland|dublin|france|paris|estonia|tallinn|lithuania|vilnius|czech|prague|hungary|budapest|germany|berlin|munich|portugal|lisbon|porto|poland|warsaw|krakow|wroclaw|toronto|vancouver|montreal|ottawa|calgary|new york|san francisco|seattle|austin|boston|chicago|los angeles|denver|atlanta|washington|remote/i;
 const SPONSOR_NON_TARGET =
@@ -298,5 +317,7 @@ export function inScope(track: Track, j: BoardJob): string | null {
   if (!CRAWL_ROLE.test(j.title) && !(CLOUD_WORD.test(j.title) && CLOUD_ROLE_NOUN.test(j.title))) return "not a target role";
   const t = titleTriage(j.title);
   if (t) return t;
-  return track === "italy-remote" ? italyEligibility(j) : sponsorshipEligibility(j);
+  if (track === "italy-remote") return italyEligibility(j);
+  if (track === "africa-remote") return africaEligibility(j);
+  return sponsorshipEligibility(j);
 }

@@ -3,13 +3,19 @@
 Cloudflare Worker that replaces the old Claude Code scheduled routine + Artifact tracker.
 
 - **Cron Triggers** run the discover → crawl → verify → screen pipeline (Berlin 8am/9am/9pm/10pm, Mon–Fri).
-  `:00` screens the Italy-remote track, `:30` the sponsorship track.
+  `:00` screens the Italy-remote track, `:15` the africa-remote track, `:30` the sponsorship track.
 - **D1** stores `postings` (the tracker), `seen` (every posting ever judged, for dedup), `runs` (one row per fire, with its event log) and `companies` (job boards to crawl).
 - A **static UI** (`public/`) talks to a small authenticated JSON API. Board + list views, drag-and-drop status changes with
   undo, a command palette (`Ctrl K`), a posting drawer, run history and a live run console.
 
 Why it exists: the old routine died on the Claude Code sandbox's egress blocks and session rate limits. This runs on
 ordinary Cloudflare networking with its own API billing.
+
+Three tracks share the same sources and rubric (`candidate-profile.md` / `src/profile.ts`), differing only in location
+eligibility and (sponsorship) verification: **italy-remote** (remote roles allowing Italy residency, floor 55),
+**sponsorship** (relocation with 100%-verified employer sponsorship to USA/Canada/UK/Ireland/France/Estonia/Lithuania/
+Czechia/Hungary/Germany/Portugal/Poland, floor 60), and **africa-remote** (fully-remote roles open to Nigeria, Ghana,
+South Africa, or Egypt, no sponsorship needed, floor **75** — added 2026-10-01, stricter than the other two).
 
 Deployed to the Cloudflare account **"Mr Sebastine"** (where the `sebastine.com` zone lives) as the custom domain
 `jobberman.sebastine.com` (`routes` in `wrangler.jsonc`; `account_id` is pinned there because the API token can see two accounts).
@@ -31,7 +37,7 @@ Boards that require a sign-in are deliberately not used (no credentials, and ToS
 1. **Discover** – rotating Brave queries (4–5 per run, spread across role × job system × region so slices don't repeat), 2–3 public
    feeds, 1 LinkedIn query + up to 3 employer lookups. Only job-detail URLs on known job systems survive (`src/canon.ts`).
    Query shape matters: one quoted phrase plus a plain word returns ~20 job pages; OR-stacks return 0–4.
-2. **Crawl** – up to 10 (Italy) / 8 (sponsorship) company boards per run, brand-new and most-mentioned first, proven ones
+2. **Crawl** – up to 10 (Italy) / 8 (sponsorship, africa-remote) company boards per run, brand-new and most-mentioned first, proven ones
    (`added > 0`) rechecked daily (`src/crawl.ts`). Role-family and location checks run on the list, before any fetch. Same role
    posted for several locations is screened once; siblings share the verdict.
 3. **Dedup** – by canonical URL against `seen` and `postings` (chunked D1 lookups); crawled company lists settle their own search hits.
@@ -39,8 +45,8 @@ Boards that require a sign-in are deliberately not used (no credentials, and ToS
    penalty for boards whose pages have mostly been dead. Workday tenants that block the public API are skipped for the run.
 5. **Verify live** – each remaining posting is fetched from its own job system (or already came from a live list/feed).
    Nothing is ever screened from a search snippet.
-6. **Pre-filter** (free) – US/Canada-only postings, on-site roles with no "remote" anywhere, and (sponsorship track) postings with no
-   visa/relocation language never reach Claude.
+6. **Pre-filter** (free) – US/Canada-only postings, on-site roles with no "remote" anywhere, (sponsorship track) postings with no
+   visa/relocation language, and (africa-remote track) postings restricted to a region excluding Nigeria/Ghana/South Africa/Egypt/worldwide, never reach Claude.
 7. **Screen** – Claude scores the fetched text against the rubric in `src/profile.ts` (`maxScreens` per run, default 14).
 8. **Guardrails in code** (`src/rules.ts`) – the decision is re-derived from score + hard filters; on the sponsorship track
    the quoted sponsorship sentence must appear **verbatim** in the fetched posting text or the posting is skipped.

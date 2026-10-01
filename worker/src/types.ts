@@ -1,4 +1,4 @@
-export type Track = "italy-remote" | "sponsorship";
+export type Track = "italy-remote" | "sponsorship" | "africa-remote";
 export type Decision = "apply" | "review" | "skip";
 /**
  * Where a posting's text came from: the employer's own job page found by search ("employer"), a public job

@@ -15,7 +15,7 @@ export interface BoardInfo {
   how: string;
 }
 
-const BOTH: Track[] = ["italy-remote", "sponsorship"];
+const ALL_TRACKS: Track[] = ["italy-remote", "sponsorship", "africa-remote"];
 
 const ATS_HOW: Record<Ats, string> = {
   greenhouse: "employer's Greenhouse job API, fetched live",
@@ -35,12 +35,12 @@ const ATS_HOW: Record<Ats, string> = {
 };
 
 export const BOARD_CATALOG: BoardInfo[] = [
-  ...(Object.keys(BOARD_NAMES) as Ats[]).map((a) => ({ name: BOARD_NAMES[a], group: "employer" as const, tracks: BOTH, how: ATS_HOW[a] + (CRAWLABLE.includes(a) ? "; each company's full live job list is crawled too" : "") })),
+  ...(Object.keys(BOARD_NAMES) as Ats[]).map((a) => ({ name: BOARD_NAMES[a], group: "employer" as const, tracks: ALL_TRACKS, how: ATS_HOW[a] + (CRAWLABLE.includes(a) ? "; each company's full live job list is crawled too" : "") })),
   ...FEEDS.map((f) => ({ name: f.board, group: "public" as const, tracks: ["italy-remote"] as Track[], how: `public listing, fetched live from ${f.board} (${f.note})` })),
   {
     name: LINKEDIN_BOARD,
     group: "linkedin",
-    tracks: BOTH,
+    tracks: ALL_TRACKS,
     how: "roles LinkedIn lists publicly are read from search results only, then looked up on the employer's own job system and verified there; LinkedIn itself is never fetched",
   },
 ];

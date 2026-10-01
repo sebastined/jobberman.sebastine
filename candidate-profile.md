@@ -32,6 +32,17 @@ A second, separate search track alongside the Italy-remote track above. This tra
 - Tag every posting logged under this track with `"track": "sponsorship"` and a `"sponsorshipCountry"` field in the tracker's `postings` collection. Postings under the original Italy-remote track should carry `"track": "italy-remote"` (or be left without the field — the tracker treats missing `track` as the Italy-remote default).
 - **The purple tag in the tracker UI is per-job, not derived from `track`.** It's driven by a separate `"sponsorshipVerified": true` boolean plus a `"sponsorshipEvidence"` field holding the verbatim quote from the employer's own primary source. Set `sponsorshipVerified: true` only on the specific postings where that verification actually happened this run — never set it as a blanket property of being in the sponsorship track. A sponsorship-track posting without `sponsorshipVerified: true` and its quoted evidence should not exist in `postings` at all (see the verification rule above), so in practice every sponsorship-track posting should carry both fields — but they're deliberately separate fields so the UI's visual signal always reflects a specific, checkable claim about that one job, not just "this came from the sponsorship search."
 
+## Track 3: Africa-remote track (added 2026-10-01, no special tag colour in the tracker)
+
+A third, separate search track alongside the Italy-remote and sponsorship tracks above: fully remote roles open to being performed from Nigeria, Ghana, South Africa, or Egypt — not roles requiring Italy residency, and not a relocation/sponsorship ask (no employer sponsorship is needed here; this is simply a broader set of base locations). Everything else (role families, seniority range, certifications, quality bar) is identical to the main profile above.
+
+- **Eligible locations:** the posting must be fully remote (no office/hybrid requirement) and either explicitly name Nigeria, Ghana, South Africa, or Egypt as an eligible location, or be open worldwide/anywhere with no location restriction that would exclude them. A posting restricted to a specific list of *other* countries (e.g. "Remote — Poland only", "Remote — EU only") does not qualify, even if it says "remote".
+- **Language:** English-speaking role only, same rule as the other tracks.
+- **No sponsorship verification required** — this track only needs the role itself to be open to one of these locations; there's nothing to verify beyond the remote-eligibility wording in the posting itself.
+- **Minimum qualifying score: 75** (raised at candidate's request on 2026-10-01 — stricter than the other two tracks, which keep their existing 55/60 floors). No lower "review" tier for this track; only genuinely matching postings reach the tracker.
+- **Salary floor:** local-market equivalent of the €35,000 floor (roughly $38,000 USD or local equivalent).
+- Tag every posting logged under this track with `"track": "africa-remote"`.
+
 ## Hard filters (any one → decision = "skip")
 
 1. **The posting must require only English.** Any required language beyond English — Italian included (candidate's Italian is basic, not professional) — fails this filter. A language mentioned only as a nice-to-have/plus, not required, does not fail it.

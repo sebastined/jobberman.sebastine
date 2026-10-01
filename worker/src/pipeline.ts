@@ -90,10 +90,20 @@ const SPONSORSHIP_QUERIES = SPONSOR_ROLES.flatMap((role) =>
   SPONSOR_PLATFORMS.flatMap((p) => SPONSOR_COUNTRIES.map((c) => `${p} ${role} visa sponsorship${c ? " " + c : ""}`)),
 );
 
+// Africa-remote track: fully-remote roles open to a candidate based in Nigeria, Ghana, South Africa, or Egypt —
+// not a relocation/sponsorship ask, just a broader set of eligible base locations. Only score >= 75 qualifies
+// (src/rules.ts FLOOR), added 2026-10-01 at the candidate's request.
+const AFRICA_REGIONS = ["worldwide remote", "remote Nigeria", "remote Ghana", 'remote "South Africa"', "remote Egypt"];
+const AFRICA_QUERIES = ROLE_TERMS.flatMap((role) => PLATFORMS.flatMap((p) => AFRICA_REGIONS.map((g) => `${p} ${role} ${g}`)));
+
 // LinkedIn is only ever read as a *search-engine result* (title/snippet): a lead names a role and a company,
 // which is then looked up on the employer's own job system. We never request a LinkedIn page.
 const ITALY_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => ITALY_REGIONS.map((g) => `site:linkedin.com/jobs/view ${r} ${g}`));
 const SPONSORSHIP_LEAD_QUERIES = SPONSOR_ROLES.flatMap((r) => SPONSOR_COUNTRIES.filter(Boolean).map((c) => `site:linkedin.com/jobs/view ${r} "visa sponsorship" ${c}`));
+const AFRICA_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => AFRICA_REGIONS.map((g) => `site:linkedin.com/jobs/view ${r} ${g}`));
+
+const QUERIES: Record<Track, string[]> = { "italy-remote": ITALY_QUERIES, sponsorship: SPONSORSHIP_QUERIES, "africa-remote": AFRICA_QUERIES };
+const LEAD_QUERIES: Record<Track, string[]> = { "italy-remote": ITALY_LEAD_QUERIES, sponsorship: SPONSORSHIP_LEAD_QUERIES, "africa-remote": AFRICA_LEAD_QUERIES };
 
 const RESOLVE_SITES =
   "(site:jobs.lever.co OR site:jobs.ashbyhq.com OR site:job-boards.greenhouse.io OR site:jobs.smartrecruiters.com OR site:apply.workable.com OR site:myworkdayjobs.com OR site:jobs.personio.com OR site:recruitee.com OR site:teamtailor.com OR site:jobs.eu.lever.co)";
@@ -144,7 +154,7 @@ function compact(e: RunEvent): RunEvent {
 }
 
 export async function runPipeline(env: Env, opts: RunOptions = {}): Promise<RunSummary> {
-  const tracks = opts.tracks ?? ["italy-remote", "sponsorship"];
+  const tracks = opts.tracks ?? ["italy-remote", "sponsorship", "africa-remote"];
   const log: RunEvent[] = [];
   const emit = (e: RunEvent) => {
     if (log.length < LOG_MAX_EVENTS) log.push(compact(e));
@@ -252,10 +262,10 @@ async function runTrack(
   // Every crawlable company we run into (dead links included: the company is still real) joins the crawl queue.
   const learned: { ats: Ats; slug: string; eu?: boolean; sponsors?: boolean }[] = [];
   // A company surfaced by a sponsorship search (whose query demands sponsorship wording) is a sponsorship candidate.
-  const learn = (info: JobUrlInfo) => learned.push({ ats: info.ats, slug: info.company, eu: info.eu, sponsors: !italy });
+  const learn = (info: JobUrlInfo) => learned.push({ ats: info.ats, slug: info.company, eu: info.eu, sponsors: track === "sponsorship" });
 
   // 1. Employer job pages: search each job system's public pages for the target roles.
-  for (const q of pickQueries(italy ? ITALY_QUERIES : SPONSORSHIP_QUERIES, seed, plan.searches)) {
+  for (const q of pickQueries(QUERIES[track], seed, plan.searches)) {
     if (!budget.take()) break;
     const hits = await braveSearch(env.BRAVE_SEARCH_API_KEY, q, 20);
     stats.hits += hits.length;
@@ -305,7 +315,7 @@ async function runTrack(
 
   // 3. LinkedIn leads: roles LinkedIn lists publicly, looked up on the employer's own job system.
   if (budget.left >= plan.leadQueries + plan.leadResolutions + 2) {
-    const leadQuery = pickQueries(italy ? ITALY_LEAD_QUERIES : SPONSORSHIP_LEAD_QUERIES, seed, 1)[0];
+    const leadQuery = pickQueries(LEAD_QUERIES[track], seed, 1)[0];
     budget.take();
     const hits = await braveSearch(env.BRAVE_SEARCH_API_KEY, leadQuery, 20);
     emit({ type: "search", track, query: leadQuery.slice(0, 140), hits: hits.length, purpose: "linkedin" });

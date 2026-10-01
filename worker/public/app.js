@@ -24,8 +24,10 @@
     Rejected: "Closed by them",
     "Not Pursuing": "Closed by you",
   };
-  // Cron: Mon–Fri 06/07/19/20 UTC; :00 screens Italy-remote, :30 screens Sponsorship (see wrangler.jsonc).
+  // Cron: Mon–Fri 06/07/19/20 UTC; :00 screens Italy-remote, :15 Africa-remote, :30 Sponsorship (see wrangler.jsonc).
   var CRON_HOURS = [6, 7, 19, 20];
+  var TRACK_LABEL = { "italy-remote": "Italy-remote", sponsorship: "Sponsorship", "africa-remote": "Africa-remote" };
+  var TRACK_MINUTES = [0, 15, 30];
   var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // ------------------------------------------------------------------ helpers
@@ -123,7 +125,7 @@
     var f = S.filters, q = f.q.trim().toLowerCase();
     var out = S.docs.filter(function (d) {
       if (f.decision && d.decision !== f.decision) return false;
-      if (f.track === "sponsorship" ? !d.sponsorship_verified : f.track === "italy-remote" ? d.sponsorship_verified : false) return false;
+      if (f.track && d.track !== f.track) return false;
       if (f.status === "closed") { if (d.status !== "Rejected" && d.status !== "Not Pursuing") return false; }
       else if (f.status && d.status !== f.status) return false;
       if (q && (d.company + " " + d.title + " " + (d.location || "")).toLowerCase().indexOf(q) === -1) return false;
@@ -165,9 +167,10 @@
       var dow = new Date(base).getUTCDay();
       if (dow === 0 || dow === 6) continue;
       for (var i = 0; i < CRON_HOURS.length; i++) {
-        for (var k = 0; k < 2; k++) {
-          var t = new Date(base + (CRON_HOURS[i] * 60 + k * 30) * 60000);
-          if (t > now && (!best || t < best.date)) best = { date: t, track: k ? "Sponsorship" : "Italy-remote" };
+        for (var k = 0; k < TRACK_MINUTES.length; k++) {
+          var t = new Date(base + (CRON_HOURS[i] * 60 + TRACK_MINUTES[k]) * 60000);
+          var label = TRACK_MINUTES[k] === 30 ? TRACK_LABEL.sponsorship : TRACK_MINUTES[k] === 15 ? TRACK_LABEL["africa-remote"] : TRACK_LABEL["italy-remote"];
+          if (t > now && (!best || t < best.date)) best = { date: t, track: label };
         }
       }
     }
@@ -307,7 +310,7 @@
       '<div class="tb-group"><span class="tb-label">Tier</span><div class="seg" data-group="decision" role="group" aria-label="Tier">' +
       '<button type="button" data-v="">All</button><button type="button" data-v="apply">Apply <span class="n" data-n="apply"></span></button><button type="button" data-v="review">Review <span class="n" data-n="review"></span></button></div></div>' +
       '<div class="tb-group"><span class="tb-label">Track</span><div class="seg" data-group="track" role="group" aria-label="Track">' +
-      '<button type="button" data-v="">All</button><button type="button" data-v="italy-remote">Italy-remote</button><button type="button" data-v="sponsorship">Sponsorship</button></div></div>' +
+      '<button type="button" data-v="">All</button><button type="button" data-v="italy-remote">Italy-remote</button><button type="button" data-v="sponsorship">Sponsorship</button><button type="button" data-v="africa-remote">Africa-remote</button></div></div>' +
       '<span id="statusChip"></span>' +
       '<label class="field">' + ic("search") + '<input id="q" type="search" placeholder="Filter…  ( / )" autocomplete="off" spellcheck="false" aria-label="Filter postings"></label>' +
       '<select id="sort" class="select" aria-label="Sort postings"><option value="score">Sort: score</option><option value="new">Sort: newest</option><option value="company">Sort: company</option></select>' +
@@ -504,7 +507,7 @@
       '<button class="icon-btn" id="drClose" type="button" data-act="close-drawer" aria-label="Close details">' + ic("x") + "</button></header>" +
       '<div class="dr-body">' +
       '<div class="dr-score">' + ringSvg(d.score, d.decision, 84, true) + '<div class="ds-meta"><div class="card-tags"><span class="pill ' + esc(d.decision) + '"><i class="dot"></i>' + cap(d.decision) + "</span>" + (d.sponsorship_verified ? sponTag(d) : "") + "</div>" +
-      '<div class="ds-line">Confidence: ' + esc(d.confidence || "n/a") + " · " + esc(d.track === "sponsorship" ? "Sponsorship track" : "Italy-remote track") + "</div></div></div>" +
+      '<div class="ds-line">Confidence: ' + esc(d.confidence || "n/a") + " · " + esc((TRACK_LABEL[d.track] || "Italy-remote") + " track") + "</div></div></div>" +
       '<div class="dr-actions"><a class="btn primary" href="' + esc(safeUrl(d.source_url)) + '" target="_blank" rel="noopener noreferrer">' + ic("external") + 'Open posting</a><button class="btn" type="button" data-act="copy-link" data-id="' + esc(d.id) + '">' + ic("copy") + "Copy link</button></div>" +
       "<section><h3>Why it scored this</h3><p class=\"body\">" + esc(d.one_line_reason || "—") + "</p></section>" +
       (d.sponsorship_verified && d.sponsorship_evidence
@@ -571,7 +574,7 @@
   var P = { open: false, items: [], sel: 0 };
   function commands() {
     return [
-      { label: "Run pipeline now", hint: "search & screen both tracks", icon: "play", run: function () { openConsole(true); } },
+      { label: "Run pipeline now", hint: "search & screen all tracks", icon: "play", run: function () { openConsole(true); } },
       { label: "View run history", hint: "what ran, what it found", icon: "pulse", run: function () { openConsole(false); } },
       { label: "View boards & yield", hint: "every source searched", icon: "list", run: function () { openConsole(false); setTab("boards"); } },
       { label: "Switch to board view", hint: "b", icon: "board", run: function () { setView("board"); } },
@@ -580,6 +583,7 @@
       { label: "Filter: review tier", icon: "check", run: function () { S.filters.decision = "review"; refilter(); } },
       { label: "Filter: verified sponsorship", icon: "shield", run: function () { S.filters.track = "sponsorship"; refilter(); } },
       { label: "Filter: Italy-remote", icon: "check", run: function () { S.filters.track = "italy-remote"; refilter(); } },
+      { label: "Filter: Africa-remote", icon: "check", run: function () { S.filters.track = "africa-remote"; refilter(); } },
       { label: "Clear all filters", icon: "x", run: function () { S.filters = { decision: "", track: "", status: "", q: "" }; $("#q").value = ""; refilter(); } },
       { label: "Export applied jobs (CSV)", icon: "download", run: exportCsv },
       { label: "Toggle light / dark theme", icon: "sun", run: toggleTheme },
@@ -697,7 +701,7 @@
         if (!rows.length) return;
         html += '<h3 class="bd-h">' + esc(g.title) + '</h3><p class="bd-sub">' + esc(g.sub) + '</p><table class="hist boards"><thead><tr><th>Source</th><th>Checked</th><th>Dead</th><th>Filtered</th><th>Screened</th><th>In tracker</th></tr></thead><tbody>' +
           rows.map(function (b) {
-            var trk = b.tracks.length === 2 ? "both tracks" : "Italy-remote only";
+            var trk = b.tracks.length > 1 ? "all tracks" : "Italy-remote only";
             var num = function (n) { return n ? String(n) : '<span class="zero">–</span>'; };
             return '<tr><td><b>' + esc(b.name) + '</b><br><span class="notes">' + esc(trk + " · " + b.how) + "</span></td><td>" + num(b.checked) + "</td><td>" + num(b.dead) + "</td><td>" + num(b.prefiltered) + "</td><td>" + num(b.screened) + "</td><td>" + (b.in_tracker ? "<b>" + b.in_tracker + "</b>" : '<span class="zero">–</span>') + "</td></tr>";
           }).join("") + "</tbody></table>";
@@ -751,13 +755,13 @@
     if (runInfo.logging) return;
     var pick = $("#runTrack [aria-pressed=true]");
     var track = pick ? pick.getAttribute("data-track") : "";
-    // "Both" is two back-to-back runs: each gets a whole invocation's request allowance instead of sharing one.
-    var tracks = track ? [track] : ["italy-remote", "sponsorship"];
+    // "All" is three back-to-back runs: each gets a whole invocation's request allowance instead of sharing one.
+    var tracks = track ? [track] : ["italy-remote", "sponsorship", "africa-remote"];
     runInfo.logging = true; runInfo.tab = "runs"; runInfo.detail = null; runInfo.target = null; syncTabs();
     $("#runGo").disabled = true;
     $("#progress").hidden = false;
     $("#consoleBody").innerHTML = "";
-    $("#consoleSub").textContent = "Live run · " + (track || "both tracks, one after the other");
+    $("#consoleSub").textContent = "Live run · " + (track || "all tracks, one after the other");
     var added = 0, stop = false;
     var one = function (t) {
       return fetch("/api/run", { method: "POST", headers: { Authorization: "Bearer " + S.token, "content-type": "application/json" }, body: JSON.stringify({ track: t }) })
