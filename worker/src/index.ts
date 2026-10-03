@@ -25,12 +25,13 @@ export default {
     }
   },
 
-  // Three crons share this handler, one per minute: :00 screens the Italy-remote track, :15 the africa-remote
-  // track, :30 the sponsorship track. Splitting them keeps each invocation inside the free plan's subrequest
-  // limit. The run is awaited (not waitUntil'd) so a failure shows up as a failed invocation instead of a
-  // silent success.
+  // Four crons share this handler, one per minute: :00 screens the Italy-remote track, :15 africa-remote, :30
+  // sponsorship, :45 uk-remote. Splitting them keeps each invocation inside the free plan's subrequest limit.
+  // The run is awaited (not waitUntil'd) so a failure shows up as a failed invocation instead of a silent success.
   async scheduled(controller, env): Promise<void> {
-    const track: Track = /^30\s/.test(controller.cron) ? "sponsorship" : /^15\s/.test(controller.cron) ? "africa-remote" : "italy-remote";
+    const MINUTE_TRACK: Record<string, Track> = { "0": "italy-remote", "15": "africa-remote", "30": "sponsorship", "45": "uk-remote" };
+    const minute = controller.cron.match(/^(\d+)\s/)?.[1] ?? "0";
+    const track: Track = MINUTE_TRACK[minute] ?? "italy-remote";
     try {
       const summary = await runPipeline(env, { tracks: [track] });
       logInfo("cron_run", { cron: controller.cron, track, ...summary });

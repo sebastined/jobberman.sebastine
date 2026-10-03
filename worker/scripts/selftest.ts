@@ -5,7 +5,7 @@ import { evidenceInText, freshnessRank, hintRank, judge, quickReject, titleTriag
 import { htmlToText } from "../src/sources";
 import { isResolvable, parseLinkedInTitle, roleMatches, companyMatches, searchableRole } from "../src/leads";
 import { pickQueries } from "../src/pipeline";
-import { africaEligibility, inScope, italyEligibility, sponsorshipEligibility, type BoardJob } from "../src/crawl";
+import { africaEligibility, inScope, italyEligibility, sponsorshipEligibility, ukEligibility, type BoardJob } from "../src/crawl";
 import type { ScreenResult } from "../src/types";
 
 let failed = 0;
@@ -69,6 +69,12 @@ check("prefilter: africa-remote US-only is rejected", quickReject("africa-remote
 check("prefilter: africa-remote EU-only is rejected", quickReject("africa-remote", long("Remote, EU only. Must be eligible to work in the EU.")) !== null);
 check("prefilter: africa-remote UK-only is rejected", quickReject("africa-remote", long("Remote, UK only. Must be authorized to work in the UK.")) !== null);
 check("prefilter: africa-remote on-site role is rejected (no remote language)", quickReject("africa-remote", long("Hybrid role based in Lagos, three days in the office.")) !== null);
+check("prefilter: uk-remote UK named passes", quickReject("uk-remote", long("Fully remote, UK based. Security engineer role.")) === null);
+check("prefilter: uk-remote London named passes", quickReject("uk-remote", long("Remote - London. Security engineer role.")) === null);
+check("prefilter: uk-remote with no UK mention is rejected (no worldwide fallback for this track)", quickReject("uk-remote", long("Fully remote, worldwide. Security engineer role.")) !== null);
+check("prefilter: uk-remote US-only is rejected", quickReject("uk-remote", long("Remote, US. Must be authorized to work in the United States.")) !== null);
+check("prefilter: uk-remote on-site role is rejected (no remote language)", quickReject("uk-remote", long("Hybrid role based in London, three days in the office.")) !== null);
+check("prefilter: uk-remote passes even when it requires UK right to work (not a quickReject concern)", quickReject("uk-remote", long("Remote, UK. Must hold existing right to work in the UK; we do not sponsor visas.")) === null);
 
 // ---- judge ----
 const base: ScreenResult = {
@@ -94,6 +100,11 @@ check("judge africa-remote 74 -> skip (no review tier for this track)", judge("a
 check("judge africa-remote 60 -> skip (would have qualified on italy-remote's floor)", judge("africa-remote", { ...base, score: 60 }, posting).decision === "skip");
 check("judge africa-remote hard-filter failure forces skip even at score 95", judge("africa-remote", { ...base, score: 95, hard_filter_failures: ["requires German"] }, posting).decision === "skip");
 check("judge africa-remote not_eligible forces skip", judge("africa-remote", { ...base, remote_eligibility: "not_eligible" }, posting).decision === "skip");
+check("judge uk-remote 88 -> apply", judge("uk-remote", base, posting).decision === "apply");
+check("judge uk-remote 60 -> review (same floor as italy-remote)", judge("uk-remote", { ...base, score: 60 }, posting).decision === "review");
+check("judge uk-remote 50 -> skip", judge("uk-remote", { ...base, score: 50 }, posting).decision === "skip");
+check("judge uk-remote hard-filter failure forces skip even at score 95", judge("uk-remote", { ...base, score: 95, hard_filter_failures: ["requires German"] }, posting).decision === "skip");
+check("judge uk-remote not_eligible forces skip", judge("uk-remote", { ...base, remote_eligibility: "not_eligible" }, posting).decision === "skip");
 
 // ---- the wider set of job systems ----
 check("workable", classifyJobUrl("https://apply.workable.com/gatekeeper-3/j/D74033B7A8/")?.canonical === "https://apply.workable.com/gatekeeper-3/j/D74033B7A8");
@@ -182,6 +193,14 @@ check("crawl/africa: on-site is rejected", africaEligibility(J("Security Enginee
 check("crawl/africa: no remote signal at all is rejected", africaEligibility(J("Security Engineer", "Madrid, Spain")) !== null);
 check("crawl/africa: remote tied to Tokyo is rejected", africaEligibility(J("Security Engineer", "Tokyo", true)) !== null);
 check("crawl/scope: africa-remote uses africaEligibility", inScope("africa-remote", J("Senior Cloud Security Engineer", "Remote - Poland", true)) !== null && inScope("africa-remote", J("Senior Cloud Security Engineer", "Remote - Nigeria", true)) === null);
+check("crawl/uk: UK named is eligible", ukEligibility(J("Security Engineer", "Remote - UK", true)) === null);
+check("crawl/uk: London-based remote is eligible", ukEligibility(J("Security Engineer", "London", true)) === null);
+check("crawl/uk: 'United Kingdom' full name is eligible", ukEligibility(J("Security Engineer", "Remote, United Kingdom", true)) === null);
+check("crawl/uk: bare 'Remote' with no UK mention is rejected (strict opt-in, unlike italy/africa)", ukEligibility(J("Security Engineer", "Remote", true)) !== null);
+check("crawl/uk: worldwide with no UK mention is rejected", ukEligibility(J("Security Engineer", "Remote - Worldwide", true)) !== null);
+check("crawl/uk: on-site in London is rejected", ukEligibility(J("Security Engineer", "London, UK", false)) !== null);
+check("crawl/uk: UK named in the title counts", ukEligibility(J("Security Engineer (UK Remote)", "")) === null);
+check("crawl/scope: uk-remote uses ukEligibility", inScope("uk-remote", J("Senior Cloud Security Engineer", "Remote", true)) !== null && inScope("uk-remote", J("Senior Cloud Security Engineer", "Remote - UK", true)) === null);
 check("crawl/sponsorship: on-site Germany is fine", sponsorshipEligibility(J("Security Engineer", "Berlin, Germany", false)) === null);
 check("crawl/sponsorship: US city with state code is fine", sponsorshipEligibility(J("Security Engineer", "Austin, TX")) === null);
 check("crawl/sponsorship: India is outside the target countries", sponsorshipEligibility(J("Security Engineer", "Bengaluru, India")) !== null);

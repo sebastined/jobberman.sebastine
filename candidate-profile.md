@@ -43,6 +43,18 @@ A third, separate search track alongside the Italy-remote and sponsorship tracks
 - **Salary floor:** local-market equivalent of the €35,000 floor (roughly $38,000 USD or local equivalent).
 - Tag every posting logged under this track with `"track": "africa-remote"`.
 
+## Track 4: UK-remote track (added 2026-10-03, no special tag colour in the tracker)
+
+A fourth, separate search track: fully remote roles anchored to the UK — captured **either way**, whether or not the posting requires UK right-to-work. The candidate does not currently hold UK right-to-work or a UK visa. Everything else (role families, seniority range, certifications, quality bar) is identical to the main profile above.
+
+- **Eligible:** the posting must be fully remote (no office/hybrid requirement) and must name the UK as the location or an eligible remote base (e.g. "Remote — UK", "Remote, United Kingdom", a UK-headquartered company's "Remote" role). A bare "worldwide remote" posting with no UK mention at all belongs on the italy-remote or africa-remote tracks instead, not this one.
+- **Not a hard filter:** unlike the default track's hard filter on work authorization, a UK-remote posting that explicitly requires UK right-to-work/a visa the candidate doesn't hold still qualifies for this track. It is never auto-skipped for that reason alone.
+- **Always stated up front:** every posting logged under this track must state, as the first line of its reason/summary, whether UK right-to-work is required, not required, or silent on it (and whether sponsorship is mentioned) — so it's visible on the card without opening it.
+- **No sponsorship verification required** for this track — if a posting happens to mention sponsorship, that's noted informationally, not treated as a qualifying requirement.
+- **Minimum qualifying score: 55** (same floor as the italy-remote track — no stricter threshold was requested for this one).
+- **Salary floor:** local-market equivalent of the €35,000 floor (roughly £30,000 or local equivalent).
+- Tag every posting logged under this track with `"track": "uk-remote"`.
+
 ## Hard filters (any one → decision = "skip")
 
 1. **The posting must require only English.** Any required language beyond English — Italian included (candidate's Italian is basic, not professional) — fails this filter. A language mentioned only as a nice-to-have/plus, not required, does not fail it.

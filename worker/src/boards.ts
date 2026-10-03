@@ -15,7 +15,7 @@ export interface BoardInfo {
   how: string;
 }
 
-const ALL_TRACKS: Track[] = ["italy-remote", "sponsorship", "africa-remote"];
+const ALL_TRACKS: Track[] = ["italy-remote", "sponsorship", "africa-remote", "uk-remote"];
 
 const ATS_HOW: Record<Ats, string> = {
   greenhouse: "employer's Greenhouse job API, fetched live",

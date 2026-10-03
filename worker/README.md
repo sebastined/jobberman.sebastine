@@ -3,7 +3,7 @@
 Cloudflare Worker that replaces the old Claude Code scheduled routine + Artifact tracker.
 
 - **Cron Triggers** run the discover → crawl → verify → screen pipeline (Berlin 8am/9am/9pm/10pm, Mon–Fri).
-  `:00` screens the Italy-remote track, `:15` the africa-remote track, `:30` the sponsorship track.
+  `:00` screens the Italy-remote track, `:15` africa-remote, `:30` sponsorship, `:45` uk-remote.
 - **D1** stores `postings` (the tracker), `seen` (every posting ever judged, for dedup), `runs` (one row per fire, with its event log) and `companies` (job boards to crawl).
 - A **static UI** (`public/`) talks to a small authenticated JSON API. Board + list views, drag-and-drop status changes with
   undo, a command palette (`Ctrl K`), a posting drawer, run history and a live run console.
@@ -11,11 +11,13 @@ Cloudflare Worker that replaces the old Claude Code scheduled routine + Artifact
 Why it exists: the old routine died on the Claude Code sandbox's egress blocks and session rate limits. This runs on
 ordinary Cloudflare networking with its own API billing.
 
-Three tracks share the same sources and rubric (`candidate-profile.md` / `src/profile.ts`), differing only in location
+Four tracks share the same sources and rubric (`candidate-profile.md` / `src/profile.ts`), differing only in location
 eligibility and (sponsorship) verification: **italy-remote** (remote roles allowing Italy residency, floor 55),
 **sponsorship** (relocation with 100%-verified employer sponsorship to USA/Canada/UK/Ireland/France/Estonia/Lithuania/
-Czechia/Hungary/Germany/Portugal/Poland, floor 60), and **africa-remote** (fully-remote roles open to Nigeria, Ghana,
-South Africa, or Egypt, no sponsorship needed, floor **75** — added 2026-10-01, stricter than the other two).
+Czechia/Hungary/Germany/Portugal/Poland, floor 60), **africa-remote** (fully-remote roles open to Nigeria, Ghana,
+South Africa, or Egypt, no sponsorship needed, floor **75** — added 2026-10-01, stricter than the others), and
+**uk-remote** (fully-remote roles anchored to the UK, captured whether or not they require UK right-to-work — the
+model reports that up front rather than filtering on it — floor 55, added 2026-10-03).
 
 Deployed to the Cloudflare account **"Mr Sebastine"** (where the `sebastine.com` zone lives) as the custom domain
 `jobberman.sebastine.com` (`routes` in `wrangler.jsonc`; `account_id` is pinned there because the API token can see two accounts).
@@ -37,7 +39,7 @@ Boards that require a sign-in are deliberately not used (no credentials, and ToS
 1. **Discover** – rotating Brave queries (4–5 per run, spread across role × job system × region so slices don't repeat), 2–3 public
    feeds, 1 LinkedIn query + up to 3 employer lookups. Only job-detail URLs on known job systems survive (`src/canon.ts`).
    Query shape matters: one quoted phrase plus a plain word returns ~20 job pages; OR-stacks return 0–4.
-2. **Crawl** – up to 10 (Italy) / 8 (sponsorship, africa-remote) company boards per run, brand-new and most-mentioned first, proven ones
+2. **Crawl** – up to 10 (Italy) / 8 (sponsorship, africa-remote, uk-remote) company boards per run, brand-new and most-mentioned first, proven ones
    (`added > 0`) rechecked daily (`src/crawl.ts`). Role-family and location checks run on the list, before any fetch. Same role
    posted for several locations is screened once; siblings share the verdict.
 3. **Dedup** – by canonical URL against `seen` and `postings` (chunked D1 lookups); crawled company lists settle their own search hits.

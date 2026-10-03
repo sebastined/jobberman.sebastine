@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS postings (
   id                    TEXT PRIMARY KEY,
   company               TEXT NOT NULL,
   title                 TEXT NOT NULL,
-  track                 TEXT NOT NULL DEFAULT 'italy-remote', -- 'italy-remote' | 'sponsorship' | 'africa-remote'
+  track                 TEXT NOT NULL DEFAULT 'italy-remote', -- 'italy-remote' | 'sponsorship' | 'africa-remote' | 'uk-remote'
   location              TEXT,
   source_url            TEXT NOT NULL,
   salary                TEXT,

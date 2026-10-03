@@ -16,6 +16,9 @@ const AFRICA_SIGNAL =
 const EUROPE_ONLY =
   /\b(eu[- ]only|europe[- ]only|european union only|remote[,\s(-]+(?:eu|europe)\b|must (?:be|reside|live)[^.]{0,60}europe|(?:authorized|eligible|legally entitled) to work in (?:the eu|europe)\b|eu work authorization|eu citizenship)/i;
 const UK_ONLY = /\b(uk[- ]only|united kingdom only|remote[,\s(-]+(?:uk|united kingdom)\b|must (?:be|reside|live)[^.]{0,60}(?:uk|united kingdom)|authorized to work in the uk\b)/i;
+// UK-remote track: the posting must name the UK somewhere — unlike the other tracks this one does not accept a
+// bare "worldwide remote" with no UK mention, since the whole point is roles anchored to the UK.
+const UK_SIGNAL = /\b(uk|united kingdom|england|scotland|wales|britain|london|manchester|edinburgh|cardiff|belfast|bristol|leeds|glasgow|birmingham|liverpool)\b/i;
 // Explicit denials ("we do not sponsor", "Visa Sponsorship Available: No", "unable to consider candidates who require sponsorship").
 const SPONSOR_DENIED =
   /\b(?:do(?:es)? not|don'?t|doesn'?t|cannot|can'?t|unable to|not able to|will not|won'?t|not (?:currently )?in a position to)\s+(?:offer\s+|provide\s+|consider\s+(?:candidates\s+)?(?:who\s+)?(?:require\s+)?)?(?:visa\s+|immigration\s+|employment\s+)?sponsor|sponsorship\s+available:?\s*no\b|(?:no|without)\s+(?:visa\s+|immigration\s+)?sponsorship\s+(?:is\s+)?(?:available|offered|provided)|unable to consider candidates who require|not eligible for (?:visa\s+)?sponsorship/i;
@@ -42,6 +45,13 @@ export function quickReject(track: Track, text: string, opts: { remoteBoard?: bo
       if (EUROPE_ONLY.test(text)) return "Europe/EU-only posting with no Africa/worldwide eligibility";
       if (UK_ONLY.test(text)) return "UK-only posting with no Africa/worldwide eligibility";
     }
+    return null;
+  }
+  if (track === "uk-remote") {
+    // Deliberately no "worldwide remote" fallback here (unlike the other tracks): this track is specifically
+    // UK-anchored roles, found either way — whether or not the posting also requires UK work rights. Whether
+    // the candidate currently holds those rights is reported by the model, not pre-filtered here.
+    if (!UK_SIGNAL.test(text)) return "not a UK-based/UK-eligible posting";
     return null;
   }
   if (!EUROPE_SIGNAL.test(text)) {
@@ -79,7 +89,7 @@ export function hintRank(title: string): number {
   if (TITLE_STRONG.test(t)) r += 4;
   if (/cloud|devsecops|sre\b|reliability|devops|platform|infrastructure|kubernetes/i.test(t)) r += 2;
   if (/\b(senior|sr\.?|staff|lead|principal)\b/i.test(t)) r += 1;
-  if (/italy|italia|europe|emea|\beu\b|worldwide|anywhere|remote|nigeria|ghana|south[- ]africa|egypt|africa/i.test(t)) r += 2;
+  if (/italy|italia|europe|emea|\beu\b|worldwide|anywhere|remote|nigeria|ghana|south[- ]africa|egypt|africa|united kingdom|\buk\b|london/i.test(t)) r += 2;
   if (/united states|\busa?\b|u\.s\.|canada|india|philippines|latam|\bus\b/i.test(t)) r -= 3;
   // "junior" is deliberately not penalised: junior/mid DevOps roles are in scope.
   if (/\b(intern|graduate|trainee|director|vp|head of|chief)\b/i.test(t)) r -= 3;
@@ -123,8 +133,9 @@ export function evidenceInText(evidence: string, text: string): boolean {
 
 const APPLY_MIN = 75;
 // africa-remote's floor equals APPLY_MIN (added 2026-10-01 at the candidate's request: only score >= 75 for this
-// track, no lower "review" tier) — the other two tracks keep their existing floors unchanged.
-const FLOOR: Record<Track, number> = { "italy-remote": 55, sponsorship: 60, "africa-remote": 75 };
+// track, no lower "review" tier) — the other tracks keep their existing floors. uk-remote (added 2026-10-03)
+// defaults to the same floor as italy-remote, since no stricter threshold was requested for it.
+const FLOOR: Record<Track, number> = { "italy-remote": 55, sponsorship: 60, "africa-remote": 75, "uk-remote": 55 };
 
 export interface Judged {
   result: ScreenResult;

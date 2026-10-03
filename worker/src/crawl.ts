@@ -300,6 +300,21 @@ export function africaEligibility(j: BoardJob): string | null {
   return null;
 }
 
+/**
+ * A reason the role doesn't qualify for the UK-remote track, or null. Unlike italyEligibility/africaEligibility
+ * (permissive when the location is vague), this one requires the UK to be named somewhere — a bare "Remote"
+ * listing from a company board isn't enough evidence it's UK-anchored. Whether UK work rights are actually
+ * required is for the model to report from the fetched text, not decided here.
+ */
+export function ukEligibility(j: BoardJob): string | null {
+  const loc = j.location.trim();
+  if (j.remote === false) return "on-site or hybrid role";
+  if (!UK_WORDS.test(loc) && !UK_WORDS.test(j.title)) return "not a UK-based/UK-eligible posting";
+  const remoteish = j.remote === true || /\bremote\b|\banywhere\b|\bworldwide\b|\bdistributed\b|home[- ]?based|work from home/i.test(loc + " " + j.title);
+  if (!remoteish) return "no remote option listed";
+  return null;
+}
+
 const SPONSOR_TARGET =
   /united states|\busa?\b|u\.s\.|canada|united kingdom|\buk\b|england|scotland|wales|ireland|dublin|france|paris|estonia|tallinn|lithuania|vilnius|czech|prague|hungary|budapest|germany|berlin|munich|portugal|lisbon|porto|poland|warsaw|krakow|wroclaw|toronto|vancouver|montreal|ottawa|calgary|new york|san francisco|seattle|austin|boston|chicago|los angeles|denver|atlanta|washington|remote/i;
 const SPONSOR_NON_TARGET =
@@ -319,5 +334,6 @@ export function inScope(track: Track, j: BoardJob): string | null {
   if (t) return t;
   if (track === "italy-remote") return italyEligibility(j);
   if (track === "africa-remote") return africaEligibility(j);
+  if (track === "uk-remote") return ukEligibility(j);
   return sponsorshipEligibility(j);
 }
