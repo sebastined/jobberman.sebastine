@@ -203,8 +203,8 @@ export interface CompanyRow {
 export const companyKey = (ats: string, slug: string) => `${ats}:${slug.toLowerCase()}`;
 
 /** Remember companies seen on crawlable job systems; ones already known are left as they are. */
-export async function upsertCompanies(env: Env, rows: { ats: Ats; slug: string; eu?: boolean; sponsors?: boolean }[]): Promise<void> {
-  const byKey = new Map<string, { ats: Ats; slug: string; eu: boolean; hits: number; sponsors: boolean }>();
+export async function upsertCompanies(env: Env, rows: { ats: Ats; slug: string; eu?: boolean; sponsors?: boolean; africaEligible?: boolean; ukEligible?: boolean }[]): Promise<void> {
+  const byKey = new Map<string, { ats: Ats; slug: string; eu: boolean; hits: number; sponsors: boolean; africaEligible: boolean; ukEligible: boolean }>();
   for (const r of rows) {
     if (!CRAWLABLE.includes(r.ats) || !r.slug) continue;
     const key = companyKey(r.ats, r.slug);
@@ -212,25 +212,32 @@ export async function upsertCompanies(env: Env, rows: { ats: Ats; slug: string; 
     if (cur) {
       cur.hits++;
       cur.sponsors ||= !!r.sponsors;
-    } else byKey.set(key, { ats: r.ats, slug: r.slug, eu: !!r.eu, hits: 1, sponsors: !!r.sponsors });
+      cur.africaEligible ||= !!r.africaEligible;
+      cur.ukEligible ||= !!r.ukEligible;
+    } else byKey.set(key, { ats: r.ats, slug: r.slug, eu: !!r.eu, hits: 1, sponsors: !!r.sponsors, africaEligible: !!r.africaEligible, ukEligible: !!r.ukEligible });
   }
   if (!byKey.size) return;
   const stmt = env.DB.prepare(
-    "INSERT INTO companies (key, ats, slug, eu, first_seen, hits, sponsors) VALUES (?,?,?,?,?,?,?) ON CONFLICT(key) DO UPDATE SET hits = hits + excluded.hits, sponsors = MAX(sponsors, excluded.sponsors)",
+    "INSERT INTO companies (key, ats, slug, eu, first_seen, hits, sponsors, africa_eligible, uk_eligible) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(key) DO UPDATE SET hits = hits + excluded.hits, sponsors = MAX(sponsors, excluded.sponsors), africa_eligible = MAX(africa_eligible, excluded.africa_eligible), uk_eligible = MAX(uk_eligible, excluded.uk_eligible)",
   );
   const now = new Date().toISOString();
-  await env.DB.batch([...byKey.entries()].map(([key, c]) => stmt.bind(key, c.ats, c.slug, c.eu ? 1 : 0, now, c.hits, c.sponsors ? 1 : 0)));
+  await env.DB.batch([...byKey.entries()].map(([key, c]) => stmt.bind(key, c.ats, c.slug, c.eu ? 1 : 0, now, c.hits, c.sponsors ? 1 : 0, c.africaEligible ? 1 : 0, c.ukEligible ? 1 : 0)));
 }
 
 /** First run after the crawler shipped: learn the companies behind every job URL already evaluated. */
 export async function seedCompaniesIfEmpty(env: Env): Promise<number> {
   const have = await env.DB.prepare("SELECT COUNT(*) AS n FROM companies").first<{ n: number }>();
   if ((have?.n ?? 0) > 0) return 0;
-  const { results } = await env.DB.prepare("SELECT source_url, 0 AS sp FROM seen WHERE source_url LIKE 'http%' UNION ALL SELECT source_url, CASE WHEN track = 'sponsorship' THEN 1 ELSE 0 END AS sp FROM postings WHERE source_url LIKE 'http%'").all<{ source_url: string; sp: number }>();
-  const rows: { ats: Ats; slug: string; eu?: boolean; sponsors?: boolean }[] = [];
+  const { results } = await env.DB.prepare(
+    "SELECT source_url, 0 AS sp, 0 AS af, 0 AS uk FROM seen WHERE source_url LIKE 'http%' " +
+      "UNION ALL SELECT source_url, CASE WHEN track = 'sponsorship' THEN 1 ELSE 0 END AS sp, " +
+      "CASE WHEN track = 'africa-remote' THEN 1 ELSE 0 END AS af, CASE WHEN track = 'uk-remote' THEN 1 ELSE 0 END AS uk " +
+      "FROM postings WHERE source_url LIKE 'http%'",
+  ).all<{ source_url: string; sp: number; af: number; uk: number }>();
+  const rows: { ats: Ats; slug: string; eu?: boolean; sponsors?: boolean; africaEligible?: boolean; ukEligible?: boolean }[] = [];
   for (const r of results) {
     const info = classifyJobUrl(r.source_url);
-    if (info) rows.push({ ats: info.ats, slug: info.company, eu: info.eu, sponsors: r.sp === 1 });
+    if (info) rows.push({ ats: info.ats, slug: info.company, eu: info.eu, sponsors: r.sp === 1, africaEligible: r.af === 1, ukEligible: r.uk === 1 });
   }
   await upsertCompanies(env, rows);
   return rows.length;
@@ -246,10 +253,16 @@ export async function pickCompaniesToCrawl(env: Env, n: number, track: Track): P
   const marks = CRAWLABLE.map(() => "?").join(",");
   // Sponsorship: only companies known to mention sponsorship, plus job systems whose list already carries the full
   // text (Lever, Recruitee, Personio), where checking every role for sponsorship wording costs nothing.
-  const sponsorClause = track === "sponsorship" ? "AND (sponsors = 1 OR ats IN ('lever','recruitee','personio'))" : "";
+  // Africa-remote / uk-remote: same idea — companies already confirmed eligible for that track get priority, so
+  // the limited per-run crawl budget isn't spent re-checking the whole undifferentiated pool every time.
+  const trackClause =
+    track === "sponsorship" ? "AND (sponsors = 1 OR ats IN ('lever','recruitee','personio'))"
+    : track === "africa-remote" ? "AND (africa_eligible = 1 OR ats IN ('lever','recruitee','personio'))"
+    : track === "uk-remote" ? "AND (uk_eligible = 1 OR ats IN ('lever','recruitee','personio'))"
+    : "";
   const { results } = await env.DB.prepare(
     `SELECT key, ats, slug, eu, last_crawled, added FROM companies
-      WHERE fail_count < 3 AND ats IN (${marks}) ${sponsorClause} AND (last_crawled IS NULL OR last_crawled < ?)
+      WHERE fail_count < 3 AND ats IN (${marks}) ${trackClause} AND (last_crawled IS NULL OR last_crawled < ?)
       ORDER BY CASE WHEN last_crawled IS NULL THEN 0 WHEN added > 0 AND last_crawled < ? THEN 1 ELSE 2 END,
                CASE WHEN last_crawled IS NULL THEN -hits ELSE 0 END, last_crawled ASC
       LIMIT ?`,
@@ -270,6 +283,14 @@ export async function markCrawled(env: Env, updates: { key: string; status: "ok"
 
 export async function markCompanySponsors(env: Env, ats: Ats, slug: string): Promise<void> {
   await env.DB.prepare("UPDATE companies SET sponsors = 1 WHERE key = ?").bind(companyKey(ats, slug)).run();
+}
+
+export async function markCompanyAfricaEligible(env: Env, ats: Ats, slug: string): Promise<void> {
+  await env.DB.prepare("UPDATE companies SET africa_eligible = 1 WHERE key = ?").bind(companyKey(ats, slug)).run();
+}
+
+export async function markCompanyUkEligible(env: Env, ats: Ats, slug: string): Promise<void> {
+  await env.DB.prepare("UPDATE companies SET uk_eligible = 1 WHERE key = ?").bind(companyKey(ats, slug)).run();
 }
 
 export async function bumpCompanyAdded(env: Env, ats: Ats, slug: string): Promise<void> {

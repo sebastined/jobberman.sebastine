@@ -24,8 +24,8 @@ A second, separate search track alongside the Italy-remote track above. This tra
 - **Eligible countries (job must be based in / sponsor relocation to one of these):** USA, Canada, UK (Scotland or Wales specifically named by the candidate — treat any UK-wide-eligible posting as qualifying unless it excludes Scotland/Wales), Ireland, France, Estonia, Lithuania, Czechia, Hungary, Germany, Portugal, Poland.
 - **Language:** English-speaking role only — the job's working language must be English even though the country may not be. A posting requiring conversational/professional fluency in the local language (German, French, Czech, etc.) fails this filter, same as the Italy track's language rule.
 - **Sponsorship must be 100% VERIFIED from the primary source, never guessed or inferred.** The claim must come from the employer's own live posting or an official careers/policy page on the employer's own domain, fetched that same run — never from an aggregator, blog, "visa jobs" listicle, or third-party mirror (Indeed, ZipRecruiter, Glassdoor, migratemate.co, jaabz.com, relocate.me, startup.jobs, The Muse, jobmetasearch.ai, etc.). Those sites can be used to *discover* candidate postings but never as the sponsorship evidence itself — always follow through to the employer's own ATS/careers page and re-confirm there. A posting that is merely silent on sponsorship does not qualify — silence is not verification, and "companies in this country often sponsor" is not verification either. The exact sponsoring sentence, quoted verbatim from the primary source, must be recorded in the `oneLineReason` or `gaps` field before the posting is written to `postings`. If the only sponsorship evidence found is from a secondary source, log the posting to `seen` as unverified and do not add it to `postings`, no matter how good the rest of the fit looks.
-- **Target score band: 60–100** (lowered from the original 80–100 floor on 2026-09-21 at candidate's request, since verified-sponsorship supply is thin). Score honestly using the same 0–100 rubric below (skills 40 / role+seniority 25 / location+remote 15 — reinterpreted here as "genuine sponsorship + reasonable relocation package" / domain 10 / quality 10) — lowering the qualifying bar means accepting real, honestly-scored postings down to 60, never inflating a score to clear the bar. The sponsorship-verification requirement (100% from the primary source, quoted verbatim) is unaffected by this — a lower score threshold is not a lower verification bar.
-- **Search sources — cast wide, including official/government channels:** beyond company ATS platforms (Greenhouse, Lever, Ashby, SmartRecruiters, Personio, Workday), also check EURES (the EU's official job-mobility portal, ec.europa.eu/eures — covers France, Estonia, Lithuania, Czechia, Hungary, Germany, Portugal, Poland, Ireland), Make it in Germany (make-it-in-germany.com, Germany's official skilled-migration portal), Canada's Job Bank (jobbank.gc.ca, the Canadian government's official listings, useful for LMIA/sponsorship-flagged postings), and Ireland's jobsireland.ie. US federal (USAJobs.gov) is out of scope — federal roles require US citizenship, not sponsorship. Government/official portals are still subject to the same primary-source verification rule: verify sponsorship on that portal's own listing text or by following through to the employer's own posting.
+- Score honestly using the same 0–100 rubric below (skills 40 / role+seniority 25 / location+remote 15 — reinterpreted here as "genuine sponsorship + reasonable relocation package" / domain 10 / quality 10), on the same floor as the other tracks (see Decision below) — never inflate a score to clear the bar. The sponsorship-verification requirement (100% from the primary source, quoted verbatim) is unaffected by the floor — a lower score threshold is not a lower verification bar.
+- **Search sources — cast wide, including official/government channels:** beyond company ATS platforms (Greenhouse, Lever, Ashby, SmartRecruiters, Personio), also check EURES (the EU's official job-mobility portal, ec.europa.eu/eures — covers France, Estonia, Lithuania, Czechia, Hungary, Germany, Portugal, Poland, Ireland), Make it in Germany (make-it-in-germany.com, Germany's official skilled-migration portal), Canada's Job Bank (jobbank.gc.ca, the Canadian government's official listings, useful for LMIA/sponsorship-flagged postings), and Ireland's jobsireland.ie. US federal (USAJobs.gov) is out of scope — federal roles require US citizenship, not sponsorship. Government/official portals are still subject to the same primary-source verification rule: verify sponsorship on that portal's own listing text or by following through to the employer's own posting.
 - **Salary floor:** local-market equivalent of the €35,000 floor (roughly $38,000 USD or local equivalent) — don't apply the literal EUR figure to non-EUR postings without converting.
 - **Role families, seniority range, and all other candidate facts (certifications, target roles including the 2026-09-21 DevOps/SRE/Cloud Engineer/Network Engineer expansion, AWS Security Specialty not-yet-held caveat) are identical to the main profile above.**
 - **Mandatory verification applies here too** — never log a sponsorship-track posting without a live fetch confirming both the role details and the sponsorship language that same run.
@@ -39,7 +39,7 @@ A third, separate search track alongside the Italy-remote and sponsorship tracks
 - **Eligible locations:** the posting must be fully remote (no office/hybrid requirement) and either explicitly name Nigeria, Ghana, South Africa, or Egypt as an eligible location, or be open worldwide/anywhere with no location restriction that would exclude them. A posting restricted to a specific list of *other* countries (e.g. "Remote — Poland only", "Remote — EU only") does not qualify, even if it says "remote".
 - **Language:** English-speaking role only, same rule as the other tracks.
 - **No sponsorship verification required** — this track only needs the role itself to be open to one of these locations; there's nothing to verify beyond the remote-eligibility wording in the posting itself.
-- **Minimum qualifying score: 75** (raised at candidate's request on 2026-10-01 — stricter than the other two tracks, which keep their existing 55/60 floors). No lower "review" tier for this track; only genuinely matching postings reach the tracker.
+- **Minimum qualifying score: 50** (same floor as the other tracks — lowered 2026-10-04 at candidate's request after this track ran for days with near-zero output on an unfocused company pool; see Decision below).
 - **Salary floor:** local-market equivalent of the €35,000 floor (roughly $38,000 USD or local equivalent).
 - Tag every posting logged under this track with `"track": "africa-remote"`.
 
@@ -51,7 +51,7 @@ A fourth, separate search track: fully remote roles anchored to the UK — captu
 - **Not a hard filter:** unlike the default track's hard filter on work authorization, a UK-remote posting that explicitly requires UK right-to-work/a visa the candidate doesn't hold still qualifies for this track. It is never auto-skipped for that reason alone.
 - **Always stated up front:** every posting logged under this track must state, as the first line of its reason/summary, whether UK right-to-work is required, not required, or silent on it (and whether sponsorship is mentioned) — so it's visible on the card without opening it.
 - **No sponsorship verification required** for this track — if a posting happens to mention sponsorship, that's noted informationally, not treated as a qualifying requirement.
-- **Minimum qualifying score: 55** (same floor as the italy-remote track — no stricter threshold was requested for this one).
+- **Minimum qualifying score: 50** (same floor as the other tracks).
 - **Salary floor:** local-market equivalent of the €35,000 floor (roughly £30,000 or local equivalent).
 - Tag every posting logged under this track with `"track": "uk-remote"`.
 
@@ -76,9 +76,13 @@ If information is missing, don't fail the filter — mark the field "unclear" an
 
 ## Decision
 
+All four tracks (italy-remote, sponsorship, africa-remote, uk-remote) share the same score bands (floor lowered
+from a per-track 55/60/75 split to a flat 50 on 2026-10-04, at candidate's request, to fix near-zero output):
+
 - **apply**: score ≥ 75 and no hard-filter failure
-- **review**: score 55–74, or a high score with important "unclear" fields
-- **skip**: score < 55 or any hard-filter failure
+- **review**: score 50–74, or a high score with important "unclear" fields
+- **skip**: score < 50 or any hard-filter failure (sponsorship track: also skip if sponsorship isn't verified
+  from the primary source, regardless of score)
 
 ## Output schema (per posting)
 

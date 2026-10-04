@@ -70,6 +70,8 @@ CREATE TABLE IF NOT EXISTS companies (
   eu            INTEGER NOT NULL DEFAULT 0,       -- Greenhouse/Lever EU-region host
   hits          INTEGER NOT NULL DEFAULT 0,       -- times it appeared in search results (more mentions = more likely to have relevant roles)
   sponsors      INTEGER NOT NULL DEFAULT 0,       -- 1 = surfaced by a sponsorship search, or one of its postings mentions sponsorship
+  africa_eligible INTEGER NOT NULL DEFAULT 0,     -- 1 = known (seeded or confirmed) to have africa-remote-eligible postings
+  uk_eligible   INTEGER NOT NULL DEFAULT 0,       -- 1 = known (seeded or confirmed) to have uk-remote-eligible postings
   first_seen    TEXT NOT NULL,
   last_crawled  TEXT,
   open_roles    INTEGER NOT NULL DEFAULT 0,       -- roles that were in scope at the last crawl

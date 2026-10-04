@@ -132,10 +132,10 @@ export function evidenceInText(evidence: string, text: string): boolean {
 }
 
 const APPLY_MIN = 75;
-// africa-remote's floor equals APPLY_MIN (added 2026-10-01 at the candidate's request: only score >= 75 for this
-// track, no lower "review" tier) — the other tracks keep their existing floors. uk-remote (added 2026-10-03)
-// defaults to the same floor as italy-remote, since no stricter threshold was requested for it.
-const FLOOR: Record<Track, number> = { "italy-remote": 55, sponsorship: 60, "africa-remote": 75, "uk-remote": 55 };
+// All four tracks floor at 50 (lowered 2026-10-04 at the candidate's explicit request, to fix near-zero output —
+// africa-remote previously floored at APPLY_MIN with no review tier at all). A 50-74 score still only reaches
+// "review", never "apply": the candidate sees and judges every borderline match, nothing is auto-applied-to.
+const FLOOR: Record<Track, number> = { "italy-remote": 50, sponsorship: 50, "africa-remote": 50, "uk-remote": 50 };
 
 export interface Judged {
   result: ScreenResult;

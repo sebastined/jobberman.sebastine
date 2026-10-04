@@ -9,7 +9,7 @@ import { screenPosting } from "./claude";
 import { freshnessRank, hintRank, judge, quickReject, titleTriage } from "./rules";
 import { LINKEDIN_BOARD } from "./boards";
 import { errorMessage, logError, logWarn } from "./log";
-import { boardStats, bumpCompanyAdded, companyKey, cleanupStaleRuns, finishRun, getKnownUrls, insertPosting, markCompanySponsors, markCrawled, pickCompaniesToCrawl, postingExists, saveSeenBatch, seedCompaniesIfEmpty, startRun, upsertCompanies, type CompanyRow, type SeenRow } from "./db";
+import { boardStats, bumpCompanyAdded, companyKey, cleanupStaleRuns, finishRun, getKnownUrls, insertPosting, markCompanyAfricaEligible, markCompanySponsors, markCompanyUkEligible, markCrawled, pickCompaniesToCrawl, postingExists, saveSeenBatch, seedCompaniesIfEmpty, startRun, upsertCompanies, type CompanyRow, type SeenRow } from "./db";
 
 // ---- Discovery queries -----------------------------------------------------
 // Rotated: each run takes a handful from the list, so coverage builds across the
@@ -50,7 +50,6 @@ const PLATFORMS = [
   "(site:job-boards.greenhouse.io OR site:boards.greenhouse.io OR site:job-boards.eu.greenhouse.io)",
   "site:jobs.smartrecruiters.com",
   "site:apply.workable.com",
-  "site:myworkdayjobs.com",
   "(site:jobs.personio.com OR site:jobs.personio.de)",
   "site:teamtailor.com",
   "site:recruitee.com",
@@ -83,7 +82,6 @@ const SPONSOR_PLATFORMS = [
   "(site:job-boards.greenhouse.io OR site:boards.greenhouse.io)",
   "site:jobs.ashbyhq.com",
   "(site:jobs.smartrecruiters.com OR site:apply.workable.com)",
-  "site:myworkdayjobs.com",
   "(site:jobs.personio.com OR site:recruitee.com OR site:teamtailor.com OR site:join.com/companies OR site:breezy.hr OR site:jobs.jobvite.com OR site:ats.rippling.com)",
 ];
 const SPONSORSHIP_QUERIES = SPONSOR_ROLES.flatMap((role) =>
@@ -91,8 +89,9 @@ const SPONSORSHIP_QUERIES = SPONSOR_ROLES.flatMap((role) =>
 );
 
 // Africa-remote track: fully-remote roles open to a candidate based in Nigeria, Ghana, South Africa, or Egypt —
-// not a relocation/sponsorship ask, just a broader set of eligible base locations. Only score >= 75 qualifies
-// (src/rules.ts FLOOR), added 2026-10-01 at the candidate's request.
+// not a relocation/sponsorship ask, just a broader set of eligible base locations. Floor is shared with the other
+// tracks (src/rules.ts FLOOR), added 2026-10-01 at the candidate's request, floor lowered 2026-10-04 after the
+// track ran 3+ days with zero output on an unfocused company pool — see companies.africa_eligible.
 const AFRICA_REGIONS = ["worldwide remote", "remote Nigeria", "remote Ghana", 'remote "South Africa"', "remote Egypt"];
 const AFRICA_QUERIES = ROLE_TERMS.flatMap((role) => PLATFORMS.flatMap((p) => AFRICA_REGIONS.map((g) => `${p} ${role} ${g}`)));
 
@@ -114,7 +113,7 @@ const QUERIES: Record<Track, string[]> = { "italy-remote": ITALY_QUERIES, sponso
 const LEAD_QUERIES: Record<Track, string[]> = { "italy-remote": ITALY_LEAD_QUERIES, sponsorship: SPONSORSHIP_LEAD_QUERIES, "africa-remote": AFRICA_LEAD_QUERIES, "uk-remote": UK_LEAD_QUERIES };
 
 const RESOLVE_SITES =
-  "(site:jobs.lever.co OR site:jobs.ashbyhq.com OR site:job-boards.greenhouse.io OR site:jobs.smartrecruiters.com OR site:apply.workable.com OR site:myworkdayjobs.com OR site:jobs.personio.com OR site:recruitee.com OR site:teamtailor.com OR site:jobs.eu.lever.co)";
+  "(site:jobs.lever.co OR site:jobs.ashbyhq.com OR site:job-boards.greenhouse.io OR site:jobs.smartrecruiters.com OR site:apply.workable.com OR site:jobs.personio.com OR site:recruitee.com OR site:teamtailor.com OR site:jobs.eu.lever.co)";
 
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
@@ -268,9 +267,12 @@ async function runTrack(
   const now = () => new Date().toISOString();
   const pending: SeenRow[] = [];
   // Every crawlable company we run into (dead links included: the company is still real) joins the crawl queue.
-  const learned: { ats: Ats; slug: string; eu?: boolean; sponsors?: boolean }[] = [];
-  // A company surfaced by a sponsorship search (whose query demands sponsorship wording) is a sponsorship candidate.
-  const learn = (info: JobUrlInfo) => learned.push({ ats: info.ats, slug: info.company, eu: info.eu, sponsors: track === "sponsorship" });
+  const learned: { ats: Ats; slug: string; eu?: boolean; sponsors?: boolean; africaEligible?: boolean; ukEligible?: boolean }[] = [];
+  // A company surfaced by a track's own search (whose query already demands that track's region/sponsorship wording)
+  // is a plausible match for that track — this is what lets pickCompaniesToCrawl prioritise a track-relevant slice
+  // of the crawl queue instead of the whole undifferentiated pool.
+  const learn = (info: JobUrlInfo) =>
+    learned.push({ ats: info.ats, slug: info.company, eu: info.eu, sponsors: track === "sponsorship", africaEligible: track === "africa-remote", ukEligible: track === "uk-remote" });
 
   // 1. Employer job pages: search each job system's public pages for the target roles.
   for (const q of pickQueries(QUERIES[track], seed, plan.searches)) {
@@ -573,7 +575,11 @@ async function runTrack(
         continue;
       }
 
-      if (track === "sponsorship" && c.info && CRAWLABLE.includes(c.info.ats)) await markCompanySponsors(env, c.info.ats, c.info.company).catch(() => {});
+      if (c.info && CRAWLABLE.includes(c.info.ats)) {
+        if (track === "sponsorship") await markCompanySponsors(env, c.info.ats, c.info.company).catch(() => {});
+        else if (track === "africa-remote") await markCompanyAfricaEligible(env, c.info.ats, c.info.company).catch(() => {});
+        else if (track === "uk-remote") await markCompanyUkEligible(env, c.info.ats, c.info.company).catch(() => {});
+      }
 
       screens++;
       budget.take();

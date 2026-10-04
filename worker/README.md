@@ -12,12 +12,13 @@ Why it exists: the old routine died on the Claude Code sandbox's egress blocks a
 ordinary Cloudflare networking with its own API billing.
 
 Four tracks share the same sources and rubric (`candidate-profile.md` / `src/profile.ts`), differing only in location
-eligibility and (sponsorship) verification: **italy-remote** (remote roles allowing Italy residency, floor 55),
-**sponsorship** (relocation with 100%-verified employer sponsorship to USA/Canada/UK/Ireland/France/Estonia/Lithuania/
-Czechia/Hungary/Germany/Portugal/Poland, floor 60), **africa-remote** (fully-remote roles open to Nigeria, Ghana,
-South Africa, or Egypt, no sponsorship needed, floor **75** — added 2026-10-01, stricter than the others), and
-**uk-remote** (fully-remote roles anchored to the UK, captured whether or not they require UK right-to-work — the
-model reports that up front rather than filtering on it — floor 55, added 2026-10-03).
+eligibility and (sponsorship) verification: **italy-remote** (remote roles allowing Italy residency), **sponsorship**
+(relocation with 100%-verified employer sponsorship to USA/Canada/UK/Ireland/France/Estonia/Lithuania/Czechia/Hungary/
+Germany/Portugal/Poland), **africa-remote** (fully-remote roles open to Nigeria, Ghana, South Africa, or Egypt, no
+sponsorship needed), and **uk-remote** (fully-remote roles anchored to the UK, captured whether or not they require
+UK right-to-work — the model reports that up front rather than filtering on it). All four share the same floor
+(score 50, lowered from a per-track 55-75 split on 2026-10-04 after africa-remote/uk-remote ran for days with
+near-zero output); 50-74 is "review", 75+ is "apply", nothing is auto-applied-to either way.
 
 Deployed to the Cloudflare account **"Mr Sebastine"** (where the `sebastine.com` zone lives) as the custom domain
 `jobberman.sebastine.com` (`routes` in `wrangler.jsonc`; `account_id` is pinned there because the API token can see two accounts).
@@ -27,12 +28,15 @@ Deployed to the Cloudflare account **"Mr Sebastine"** (where the `sebastine.com`
 
 | Source | What it is | How it's verified |
 |---|---|---|
-| **14 employer job systems** — Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Workday, Personio, Teamtailor, Recruitee, Breezy HR, JazzHR, Join.com, Jobvite, Rippling | Job-detail pages found with Brave Search (`site:` queries) | Fetched live from the employer's own job API/page. 404/410 or a closed notice is final. |
-| **Company job boards (crawl)** — Greenhouse, Ashby, SmartRecruiters, Workable, Breezy, Lever, Recruitee, Personio | The public job *list* of every company the pipeline has learned about (`companies` table) | One request returns every role open right now, with location + remote flag, so dead links and out-of-region roles are dropped for free. Also settles the search hits of a crawled company (absent from its list = closed). |
+| **13 employer job systems** — Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Personio, Teamtailor, Recruitee, Breezy HR, JazzHR, Join.com, Jobvite, Rippling | Job-detail pages found with Brave Search (`site:` queries) | Fetched live from the employer's own job API/page. 404/410 or a closed notice is final. |
+| **Company job boards (crawl)** — Greenhouse, Ashby, SmartRecruiters, Workable, Breezy, Lever, Recruitee, Personio | The public job *list* of every company the pipeline has learned about (`companies` table, flagged per-track via `sponsors`/`africa_eligible`/`uk_eligible` so each track's crawl budget is spent on companies plausibly relevant to it) | One request returns every role open right now, with location + remote flag, so dead links and out-of-region roles are dropped for free. Also settles the search hits of a crawled company (absent from its list = closed). |
 | **9 public job boards** — RemoteOK, Remotive, Jobicy, Himalayas, We Work Remotely, Working Nomads, The Muse, Jobspresso, Hacker News "Who is hiring" | Public feeds/APIs (Italy-remote track only) | Listing fetched live from the board, labelled "board listing" in the UI — not the employer's own page. |
 | **LinkedIn (leads only)** | Roles LinkedIn lists publicly, read from *search-engine results* (title/snippet). LinkedIn itself is never fetched. | Each lead is looked up on the employer's own job system and only counted once verified there ("via LinkedIn" badge). |
 
 Boards that require a sign-in are deliberately not used (no credentials, and ToS). Arbeitnow (2 MB JSON) is skipped for CPU reasons.
+Workday dropped from discovery 2026-10-04: 265 checked all-time, 0 ever added — most tenants block the public job API,
+so every Workday hit was wasting a share of the 40-subrequest-per-run budget on a dead end. `src/canon.ts`/`src/sources.ts`
+still classify and fetch a Workday URL if one shows up some other way; it's just no longer searched for.
 
 ## How a run works
 
@@ -44,7 +48,7 @@ Boards that require a sign-in are deliberately not used (no credentials, and ToS
    posted for several locations is screened once; siblings share the verdict.
 3. **Dedup** – by canonical URL against `seen` and `postings` (chunked D1 lookups); crawled company lists settle their own search hits.
 4. **Rank** – title relevance, region words, page freshness (Brave `page_age`: age-less/old results are mostly closed), and a
-   penalty for boards whose pages have mostly been dead. Workday tenants that block the public API are skipped for the run.
+   penalty for boards whose pages have mostly been dead.
 5. **Verify live** – each remaining posting is fetched from its own job system (or already came from a live list/feed).
    Nothing is ever screened from a search snippet.
 6. **Pre-filter** (free) – US/Canada-only postings, on-site roles with no "remote" anywhere, (sponsorship track) postings with no
