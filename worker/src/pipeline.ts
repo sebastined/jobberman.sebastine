@@ -152,8 +152,12 @@ const LEAD_QUERIES: Record<Track, string[]> = {
   "italy-hybrid": [...ITALY_HYBRID_LEAD_QUERIES, ...INDEED_IT_HYBRID_LEAD_QUERIES, ...INFOJOBS_HYBRID_LEAD_QUERIES, ...SUBITO_HYBRID_LEAD_QUERIES],
 };
 
+// Every ATS a lead could resolve to. Widened 2026-10-10 (5 more systems — breezy/jazzhr/join/jobvite/rippling)
+// to give leads a slightly better chance of confirming against the employer's own page — a modest improvement:
+// most small local businesses posting to Indeed/InfoJobs/Subito don't use any of these 14 systems either, so
+// this mainly helps leads whose employer already runs one, not leads from employers running none at all.
 const RESOLVE_SITES =
-  "(site:jobs.lever.co OR site:jobs.ashbyhq.com OR site:job-boards.greenhouse.io OR site:jobs.smartrecruiters.com OR site:apply.workable.com OR site:jobs.personio.com OR site:recruitee.com OR site:teamtailor.com OR site:jobs.eu.lever.co)";
+  "(site:jobs.lever.co OR site:jobs.ashbyhq.com OR site:job-boards.greenhouse.io OR site:jobs.smartrecruiters.com OR site:apply.workable.com OR site:jobs.personio.com OR site:recruitee.com OR site:teamtailor.com OR site:jobs.eu.lever.co OR site:breezy.hr OR site:applytojob.com OR site:join.com/companies OR site:jobs.jobvite.com OR site:ats.rippling.com)";
 
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
