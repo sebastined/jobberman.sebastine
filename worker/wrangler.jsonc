@@ -21,8 +21,11 @@
   // :00 screens the Italy-remote track, :15 africa-remote, :30 sponsorship, :45 uk-remote, :50
   // italy-hybrid (see src/index.ts). All 5 of the free plan's cron-trigger slots are now in use —
   // a 6th track would need Workers Paid or to double up on an existing minute.
+  // The :50 trigger ALSO fires Sat/Sun ("* * *" instead of "1-5"): weekends are otherwise fully idle,
+  // so index.ts's scheduled() detects the weekend firing and runs a "deep catchup" pass (rotating
+  // across all 5 tracks) instead of italy-hybrid — see the comment there for why.
   "triggers": {
-    "crons": ["0 6,7,19,20 * * 1-5", "15 6,7,19,20 * * 1-5", "30 6,7,19,20 * * 1-5", "45 6,7,19,20 * * 1-5", "50 6,7,19,20 * * 1-5"]
+    "crons": ["0 6,7,19,20 * * 1-5", "15 6,7,19,20 * * 1-5", "30 6,7,19,20 * * 1-5", "45 6,7,19,20 * * 1-5", "50 6,7,19,20 * * *"]
   },
 
   "d1_databases": [
@@ -43,7 +46,7 @@
 
   // Set with `wrangler secret put <NAME>`; declared here so `wrangler types` types them and local dev warns when one is missing.
   "secrets": {
-    "required": ["ANTHROPIC_API_KEY", "BRAVE_SEARCH_API_KEY", "TRACKER_TOKEN"]
+    "required": ["ANTHROPIC_API_KEY", "BRAVE_SEARCH_API_KEY", "TRACKER_TOKEN", "DEEPSEEK_API_KEY"]
   },
 
   "vars": {

@@ -6,6 +6,7 @@ import { braveSearch, fetchPosting, type Fetched } from "./sources";
 import { pickFeeds, type FeedItem } from "./feeds";
 import { companyMatches, isResolvable, parseBoardTitle, parseLinkedInTitle, roleMatches, searchableRole, type Lead } from "./leads";
 import { screenPosting } from "./claude";
+import { screenPostingDeepSeek } from "./deepseek";
 import { freshnessRank, hintRank, judge, quickReject, titleTriage } from "./rules";
 import { INDEED_BOARD, INFOJOBS_BOARD, LINKEDIN_BOARD, SUBITO_BOARD } from "./boards";
 import { errorMessage, logError, logWarn } from "./log";
@@ -180,8 +181,17 @@ export interface RunOptions {
   onEvent?: (e: RunEvent) => void;
   /** Rotates which discovery queries this run uses. */
   seed?: number;
-  /** Cap on Claude screenings per track per run (cost control). */
+  /** Cap on screenings per track per run (cost control). */
   maxScreens?: number;
+  /**
+   * Weekend-only backlog-clearing mode (src/index.ts scheduled()): skips search/feeds/leads entirely and
+   * spends the whole budget crawling companies, deepest-stale first, from this track's full pool — not just
+   * the handful a weekday run can afford. Screens with DeepSeek instead of Claude (src/deepseek.ts), since
+   * it's far cheaper and this mode can screen a lot more postings per run. Added 2026-10-10 after diagnosing
+   * that a sponsorship-relevant company (Superhuman Platform Inc) sat uncrawled for 6+ days because its
+   * track's crawl pool (648 companies) moves slower than new postings appear at the small weekday budget.
+   */
+  catchup?: boolean;
 }
 
 export interface RunSummary {
@@ -298,16 +308,21 @@ async function runTrack(
   const italy = track === "italy-remote";
   const italyFocused = track === "italy-remote" || track === "italy-hybrid";
   const roomy = budget.max >= 40; // a lone track gets the whole invocation; two share it
-  const plan = {
-    searches: italy ? (roomy ? 4 : 2) : roomy ? 3 : 2,
-    feeds: italy ? (roomy ? 3 : 1) : 0,
-    // Italy-remote/italy-hybrid run 2 lead-discovery queries per run (vs 1 for the other tracks): their
-    // LEAD_QUERIES pool now mixes in Indeed/InfoJobs/Subito alongside LinkedIn, so one query a run would
-    // mostly just rotate between boards instead of actually covering more of them.
-    leadQueries: italyFocused ? 2 : 1,
-    leadResolutions: italyFocused ? (roomy ? 2 : 1) : roomy ? 2 : 1,
-    crawls: roomy ? 6 : 3,
-  };
+  const catchup = !!opts.catchup;
+  const plan = catchup
+    ? // Deep catchup: no search/feeds/leads at all — every spare request goes to crawling the stalest
+      // companies in this track's pool instead of the handful a weekday run has budget for.
+      { searches: 0, feeds: 0, leadQueries: 0, leadResolutions: 0, crawls: 30 }
+    : {
+        searches: italy ? (roomy ? 4 : 2) : roomy ? 3 : 2,
+        feeds: italy ? (roomy ? 3 : 1) : 0,
+        // Italy-remote/italy-hybrid run 2 lead-discovery queries per run (vs 1 for the other tracks): their
+        // LEAD_QUERIES pool now mixes in Indeed/InfoJobs/Subito alongside LinkedIn, so one query a run would
+        // mostly just rotate between boards instead of actually covering more of them.
+        leadQueries: italyFocused ? 2 : 1,
+        leadResolutions: italyFocused ? (roomy ? 2 : 1) : roomy ? 2 : 1,
+        crawls: roomy ? 6 : 3,
+      };
 
   const candidates = new Map<string, Candidate>();
   const add = (c: Candidate) => {
@@ -444,10 +459,12 @@ async function runTrack(
   const roleGroups = new Map<string, Candidate>();
   // What each crawled company has open right now (canonical URL -> its list entry): the free liveness check below.
   const liveByCompany = new Map<string, Map<string, BoardJob>>();
-  const maxScreens = opts.maxScreens ?? 14;
+  const maxScreens = opts.maxScreens ?? (catchup ? 10 : 14);
   // Keep enough budget to fetch and screen a full set of candidates; crawling (1 request per company) uses the rest.
-  const reserve = 14;
-  const crawlCap = roomy ? (italy ? 18 : 22) : 4;
+  // Catchup spends almost the whole budget crawling (that's the backlog this mode exists to clear) and reserves
+  // less for screening, since most of a 30-company crawl is expected to turn up nothing new — same as a normal run.
+  const reserve = catchup ? 8 : 14;
+  const crawlCap = catchup ? 30 : roomy ? (italy ? 18 : 22) : 4;
   let due: CompanyRow[] = await pickCompaniesToCrawl(env, plan.crawls, track).catch(() => []);
   while (due.length) {
     for (const co of due) {
@@ -503,7 +520,7 @@ async function runTrack(
     // A thin pool of candidates (common on the sponsorship track, where most postings never mention sponsorship) means
     // spare budget is better spent reading more company boards than idling.
     if (stats.crawled >= crawlCap || candidates.size >= maxScreens * 2 || budget.left <= reserve) break;
-    due = await pickCompaniesToCrawl(env, Math.min(3, crawlCap - stats.crawled), track).catch(() => []);
+    due = await pickCompaniesToCrawl(env, Math.min(catchup ? 10 : 3, crawlCap - stats.crawled), track).catch(() => []);
   }
 
   // A crawled company's live list settles its search hits for free: absent = closed; present but out of scope for this
@@ -556,6 +573,7 @@ async function runTrack(
     if (c.leadKey) pending.push({ id: c.leadKey, date_evaluated: now(), decision: "lead - resolved to an employer page", score: 0, source_url: c.leadKey, board: c.leadBoard ?? LINKEDIN_BOARD });
   };
   const claude = { apiKey: env.ANTHROPIC_API_KEY, baseUrl: env.ANTHROPIC_BASE_URL };
+  const deepseek = { apiKey: env.DEEPSEEK_API_KEY };
 
   let evaluated = 0;
   let added = 0;
@@ -638,7 +656,7 @@ async function runTrack(
       budget.take();
       let screened;
       try {
-        screened = await screenPosting(claude, track, c.url, fetched.text);
+        screened = catchup ? await screenPostingDeepSeek(deepseek, track, c.url, fetched.text) : await screenPosting(claude, track, c.url, fetched.text);
         consecutiveErrors = 0;
       } catch (err) {
         if (err instanceof FatalApiError) throw err;
@@ -706,7 +724,7 @@ async function runTrack(
   if (budgetHit) notes.push(`${track}: subrequest budget exhausted`);
 
   notes.push(
-    `${track}: ${plan.searches} board searches (${stats.hits} hits)` +
+    `${track}${catchup ? " [deep catchup, DeepSeek]" : ""}: ${plan.searches} board searches (${stats.hits} hits)` +
       (plan.feeds ? ` + ${plan.feeds} public feeds (${stats.feedItems} items)` : "") +
       ` + ${stats.leads} board leads (${stats.resolved} resolved to employer pages)` +
       ` + ${stats.crawled} company boards crawled (${stats.crawlRoles} open roles → ${stats.crawlInScope} in scope, ${stats.crawlFiltered} more dropped on their text; the lists ruled out ${stats.oracleDead} closed and ${stats.oracleOut} ineligible search hits without a fetch)` +

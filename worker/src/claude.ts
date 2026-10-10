@@ -94,7 +94,8 @@ export async function screenPosting(cfg: ClaudeConfig, track: Track, sourceUrl: 
   return normalise(tool.input);
 }
 
-function normalise(raw: any): ScreenResult {
+/** Shared with deepseek.ts — both models fill the same record_screening schema. */
+export function normalise(raw: any): ScreenResult {
   const arr = (v: unknown) => (Array.isArray(v) ? v.map(String).filter(Boolean) : []);
   const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
   const score = Math.max(0, Math.min(100, Math.round(Number(raw?.score) || 0)));
