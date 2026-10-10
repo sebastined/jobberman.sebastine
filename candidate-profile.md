@@ -57,6 +57,17 @@ A fourth, separate search track: fully remote roles anchored to the UK — captu
 - **Salary floor:** local-market equivalent of the €35,000 floor (roughly £30,000 or local equivalent).
 - Tag every posting logged under this track with `"track": "uk-remote"`.
 
+## Track 5: Italy-hybrid track (added 2026-10-10, no special tag colour in the tracker)
+
+A fifth, separate search track: English-speaking roles actually based in Italy, on-site or hybrid — unlike the main Italy-remote track above, this one does **not** require the role to be remote at all. Everything else (role families, seniority range, certifications, quality bar) is identical to the main profile above.
+
+- **Eligible:** the role's office/base must be in Italy (a named Italian city, or "Italy"/"Italia" in the posting). Remote, hybrid, and fully on-site are all fine — remote-ness itself is not evaluated on this track.
+- `remote_eligibility` on this track means "is the role's Italy location workable for the candidate," almost always "eligible" once the posting is genuinely Italy-based — it does not mean "is it remote."
+- **No sponsorship needed** — the candidate is already authorized to work in Italy.
+- **Minimum qualifying score: 50** (same floor as the other tracks).
+- **Salary floor:** €35,000/year, same as the main profile.
+- Tag every posting logged under this track with `"track": "italy-hybrid"`.
+
 ## Hard filters (any one → decision = "skip")
 
 1. **The posting must require only English.** Any required language beyond English — Italian included (candidate's Italian is basic, not professional) — fails this filter. A language mentioned only as a nice-to-have/plus, not required, does not fail it.
@@ -78,7 +89,7 @@ If information is missing, don't fail the filter — mark the field "unclear" an
 
 ## Decision
 
-All four tracks (italy-remote, sponsorship, africa-remote, uk-remote) share the same score bands (floor lowered
+All five tracks (italy-remote, sponsorship, africa-remote, uk-remote, italy-hybrid) share the same score bands (floor lowered
 from a per-track 55/60/75 split to a flat 50 on 2026-10-04, at candidate's request, to fix near-zero output):
 
 - **apply**: score ≥ 75 and no hard-filter failure

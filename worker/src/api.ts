@@ -63,7 +63,7 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext, u
   if (path === "/api/run" && req.method === "POST") {
     if (await runInProgress(env)) return json({ error: "A run is already in progress" }, { status: 409 });
     const body = (await req.json().catch(() => ({}))) as { track?: string };
-    const VALID_TRACKS: Track[] = ["italy-remote", "sponsorship", "africa-remote", "uk-remote"];
+    const VALID_TRACKS: Track[] = ["italy-remote", "sponsorship", "africa-remote", "uk-remote", "italy-hybrid"];
     const tracks: Track[] = (VALID_TRACKS as string[]).includes(body.track ?? "") ? [body.track as Track] : VALID_TRACKS;
 
     const { readable, writable } = new TransformStream();

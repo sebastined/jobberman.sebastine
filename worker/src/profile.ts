@@ -99,6 +99,18 @@ families, seniority range, and candidate facts as above, but:
   in one_line_reason as above, but that is informational, not a qualifying requirement.
 - Salary floor: local-market equivalent of EUR 35,000 (roughly GBP 30,000 or local equivalent).
 
+## Track: italy-hybrid
+A fifth track for English-speaking roles actually based in Italy, on-site or hybrid — unlike italy-remote,
+this track does NOT require the role to be remote at all. Same role families, seniority range, and candidate
+facts as above, but:
+- Eligible: the role's office/base must be in Italy (named city or "Italy"/"Italia" in the posting). Remote,
+  hybrid, and fully on-site are all fine here - remote-ness is not evaluated.
+- remote_eligibility on this track means "is the role's Italy location workable for the candidate" (almost
+  always "eligible" if it's genuinely Italy-based), not "is it remote."
+- Language: English-speaking role only, same rule as the other tracks.
+- No sponsorship needed - the candidate is already authorized to work in Italy.
+- Salary floor: EUR 35,000/year, same as the main profile.
+
 ## Scoring (0-100)
 - 40 pts: overlap between required skills and actual experience/certifications (only credit what's listed
   above — an unlisted tool/framework is a gap, not an assumption)
@@ -109,7 +121,7 @@ families, seniority range, and candidate facts as above, but:
 - 10 pts: quality signals (clear scope, real company, stated salary, reasonable requirements)
 
 ## Decision
-All four tracks share the same score bands: apply if score >= 75 and no hard-filter failure; review if
+All five tracks share the same score bands: apply if score >= 75 and no hard-filter failure; review if
 score 50-74, or a high score with important "unclear" fields; skip if score < 50 or any hard-filter failure.
 - sponsorship track additionally requires sponsorship verified from the primary source, or it skips regardless
   of score; for Australia/UK specifically, apply if score >= 80, otherwise skip (no review tier for those two).

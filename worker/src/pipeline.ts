@@ -104,15 +104,23 @@ const AFRICA_QUERIES = ROLE_TERMS.flatMap((role) => PLATFORMS.flatMap((p) => AFR
 const UK_REGIONS = ["remote UK", 'remote "United Kingdom"', "remote London", "UK remote"];
 const UK_QUERIES = ROLE_TERMS.flatMap((role) => PLATFORMS.flatMap((p) => UK_REGIONS.map((g) => `${p} ${role} ${g}`)));
 
+// Italy-hybrid track: English-speaking roles actually based in Italy, on-site or hybrid — not a remote
+// requirement at all (unlike italy-remote above). Added 2026-10-10 at the candidate's request. Shares the
+// other tracks' floor (src/rules.ts FLOOR); no dedicated company-eligibility flag yet (see africa_eligible/
+// uk_eligible) — add one if this track turns out as starved as those two did before 2026-10-04.
+const ITALY_HYBRID_REGIONS = ["Italy", "Milan", "Rome", "hybrid Italy"];
+const ITALY_HYBRID_QUERIES = ROLE_TERMS.flatMap((role) => PLATFORMS.flatMap((p) => ITALY_HYBRID_REGIONS.map((g) => `${p} ${role} ${g}`)));
+
 // LinkedIn is only ever read as a *search-engine result* (title/snippet): a lead names a role and a company,
 // which is then looked up on the employer's own job system. We never request a LinkedIn page.
 const ITALY_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => ITALY_REGIONS.map((g) => `site:linkedin.com/jobs/view ${r} ${g}`));
 const SPONSORSHIP_LEAD_QUERIES = SPONSOR_ROLES.flatMap((r) => SPONSOR_COUNTRIES.filter(Boolean).map((c) => `site:linkedin.com/jobs/view ${r} "visa sponsorship" ${c}`));
 const AFRICA_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => AFRICA_REGIONS.map((g) => `site:linkedin.com/jobs/view ${r} ${g}`));
 const UK_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => UK_REGIONS.map((g) => `site:linkedin.com/jobs/view ${r} ${g}`));
+const ITALY_HYBRID_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => ITALY_HYBRID_REGIONS.map((g) => `site:linkedin.com/jobs/view ${r} ${g}`));
 
-const QUERIES: Record<Track, string[]> = { "italy-remote": ITALY_QUERIES, sponsorship: SPONSORSHIP_QUERIES, "africa-remote": AFRICA_QUERIES, "uk-remote": UK_QUERIES };
-const LEAD_QUERIES: Record<Track, string[]> = { "italy-remote": ITALY_LEAD_QUERIES, sponsorship: SPONSORSHIP_LEAD_QUERIES, "africa-remote": AFRICA_LEAD_QUERIES, "uk-remote": UK_LEAD_QUERIES };
+const QUERIES: Record<Track, string[]> = { "italy-remote": ITALY_QUERIES, sponsorship: SPONSORSHIP_QUERIES, "africa-remote": AFRICA_QUERIES, "uk-remote": UK_QUERIES, "italy-hybrid": ITALY_HYBRID_QUERIES };
+const LEAD_QUERIES: Record<Track, string[]> = { "italy-remote": ITALY_LEAD_QUERIES, sponsorship: SPONSORSHIP_LEAD_QUERIES, "africa-remote": AFRICA_LEAD_QUERIES, "uk-remote": UK_LEAD_QUERIES, "italy-hybrid": ITALY_HYBRID_LEAD_QUERIES };
 
 const RESOLVE_SITES =
   "(site:jobs.lever.co OR site:jobs.ashbyhq.com OR site:job-boards.greenhouse.io OR site:jobs.smartrecruiters.com OR site:apply.workable.com OR site:jobs.personio.com OR site:recruitee.com OR site:teamtailor.com OR site:jobs.eu.lever.co)";
@@ -163,7 +171,7 @@ function compact(e: RunEvent): RunEvent {
 }
 
 export async function runPipeline(env: Env, opts: RunOptions = {}): Promise<RunSummary> {
-  const tracks = opts.tracks ?? ["italy-remote", "sponsorship", "africa-remote", "uk-remote"];
+  const tracks = opts.tracks ?? ["italy-remote", "sponsorship", "africa-remote", "uk-remote", "italy-hybrid"];
   const log: RunEvent[] = [];
   const emit = (e: RunEvent) => {
     if (log.length < LOG_MAX_EVENTS) log.push(compact(e));

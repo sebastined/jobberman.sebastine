@@ -3,7 +3,8 @@
 Cloudflare Worker that replaces the old Claude Code scheduled routine + Artifact tracker.
 
 - **Cron Triggers** run the discover → crawl → verify → screen pipeline (Berlin 8am/9am/9pm/10pm, Mon–Fri).
-  `:00` screens the Italy-remote track, `:15` africa-remote, `:30` sponsorship, `:45` uk-remote.
+  `:00` screens the Italy-remote track, `:15` africa-remote, `:30` sponsorship, `:45` uk-remote, `:50` italy-hybrid
+  (all 5 of the free plan's cron-trigger slots, none spare).
 - **D1** stores `postings` (the tracker), `seen` (every posting ever judged, for dedup), `runs` (one row per fire, with its event log) and `companies` (job boards to crawl).
 - A **static UI** (`public/`) talks to a small authenticated JSON API. Board + list views, drag-and-drop status changes with
   undo, a command palette (`Ctrl K`), a posting drawer, run history and a live run console.
@@ -11,16 +12,17 @@ Cloudflare Worker that replaces the old Claude Code scheduled routine + Artifact
 Why it exists: the old routine died on the Claude Code sandbox's egress blocks and session rate limits. This runs on
 ordinary Cloudflare networking with its own API billing.
 
-Four tracks share the same sources and rubric (`candidate-profile.md` / `src/profile.ts`), differing only in location
+Five tracks share the same sources and rubric (`candidate-profile.md` / `src/profile.ts`), differing only in location
 eligibility and (sponsorship) verification: **italy-remote** (remote roles allowing Italy residency), **sponsorship**
 (relocation with 100%-verified employer sponsorship to USA/Canada/UK/Ireland/France/Estonia/Lithuania/Czechia/Hungary/
 Germany/Portugal/Poland/Finland/Australia), **africa-remote** (fully-remote roles open to Nigeria, Ghana, South Africa,
-or Egypt, no sponsorship needed), and **uk-remote** (fully-remote roles anchored to the UK, captured whether or not
-they require UK right-to-work — the model reports that up front rather than filtering on it). All four share the same
-floor (score 50, lowered from a per-track 55-75 split on 2026-10-04 after africa-remote/uk-remote ran for days with
-near-zero output); 50-74 is "review", 75+ is "apply", nothing is auto-applied-to either way — except sponsorship
-postings targeting Australia or the UK, which need 80+ with no review tier (added 2026-10-10, those two searches
-are noisier than the rest).
+or Egypt, no sponsorship needed), **uk-remote** (fully-remote roles anchored to the UK, captured whether or not
+they require UK right-to-work — the model reports that up front rather than filtering on it), and **italy-hybrid**
+(English-speaking roles actually based in Italy, on-site or hybrid — not a remote requirement at all, added
+2026-10-10). All five share the same floor (score 50, lowered from a per-track 55-75 split on 2026-10-04 after
+africa-remote/uk-remote ran for days with near-zero output); 50-74 is "review", 75+ is "apply", nothing is
+auto-applied-to either way — except sponsorship postings targeting Australia or the UK, which need 80+ with no
+review tier (added 2026-10-10, those two searches are noisier than the rest).
 
 Deployed to the Cloudflare account **"Mr Sebastine"** (where the `sebastine.com` zone lives) as the custom domain
 `jobberman.sebastine.com` (`routes` in `wrangler.jsonc`; `account_id` is pinned there because the API token can see two accounts).

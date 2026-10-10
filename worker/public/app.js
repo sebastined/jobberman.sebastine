@@ -24,11 +24,11 @@
     Rejected: "Closed by them",
     "Not Pursuing": "Closed by you",
   };
-  // Cron: Mon–Fri 06/07/19/20 UTC; :00 Italy-remote, :15 Africa-remote, :30 Sponsorship, :45 UK-remote (see wrangler.jsonc).
+  // Cron: Mon–Fri 06/07/19/20 UTC; :00 Italy-remote, :15 Africa-remote, :30 Sponsorship, :45 UK-remote, :50 Italy-hybrid (see wrangler.jsonc).
   var CRON_HOURS = [6, 7, 19, 20];
-  var TRACK_LABEL = { "italy-remote": "Italy-remote", sponsorship: "Sponsorship", "africa-remote": "Africa-remote", "uk-remote": "UK-remote" };
-  var TRACK_MINUTES = [0, 15, 30, 45];
-  var MINUTE_TRACK = { 0: "italy-remote", 15: "africa-remote", 30: "sponsorship", 45: "uk-remote" };
+  var TRACK_LABEL = { "italy-remote": "Italy-remote", sponsorship: "Sponsorship", "africa-remote": "Africa-remote", "uk-remote": "UK-remote", "italy-hybrid": "Italy-hybrid" };
+  var TRACK_MINUTES = [0, 15, 30, 45, 50];
+  var MINUTE_TRACK = { 0: "italy-remote", 15: "africa-remote", 30: "sponsorship", 45: "uk-remote", 50: "italy-hybrid" };
   var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // ------------------------------------------------------------------ helpers
@@ -311,7 +311,7 @@
       '<div class="tb-group"><span class="tb-label">Tier</span><div class="seg" data-group="decision" role="group" aria-label="Tier">' +
       '<button type="button" data-v="">All</button><button type="button" data-v="apply">Apply <span class="n" data-n="apply"></span></button><button type="button" data-v="review">Review <span class="n" data-n="review"></span></button></div></div>' +
       '<div class="tb-group"><span class="tb-label">Track</span><div class="seg" data-group="track" role="group" aria-label="Track">' +
-      '<button type="button" data-v="">All</button><button type="button" data-v="italy-remote">Italy-remote</button><button type="button" data-v="sponsorship">Sponsorship</button><button type="button" data-v="africa-remote">Africa-remote</button><button type="button" data-v="uk-remote">UK-remote</button></div></div>' +
+      '<button type="button" data-v="">All</button><button type="button" data-v="italy-remote">Italy-remote</button><button type="button" data-v="sponsorship">Sponsorship</button><button type="button" data-v="africa-remote">Africa-remote</button><button type="button" data-v="uk-remote">UK-remote</button><button type="button" data-v="italy-hybrid">Italy-hybrid</button></div></div>' +
       '<span id="statusChip"></span>' +
       '<label class="field">' + ic("search") + '<input id="q" type="search" placeholder="Filter…  ( / )" autocomplete="off" spellcheck="false" aria-label="Filter postings"></label>' +
       '<select id="sort" class="select" aria-label="Sort postings"><option value="score">Sort: score</option><option value="new">Sort: newest</option><option value="company">Sort: company</option></select>' +
@@ -586,6 +586,7 @@
       { label: "Filter: Italy-remote", icon: "check", run: function () { S.filters.track = "italy-remote"; refilter(); } },
       { label: "Filter: Africa-remote", icon: "check", run: function () { S.filters.track = "africa-remote"; refilter(); } },
       { label: "Filter: UK-remote", icon: "check", run: function () { S.filters.track = "uk-remote"; refilter(); } },
+      { label: "Filter: Italy-hybrid", icon: "check", run: function () { S.filters.track = "italy-hybrid"; refilter(); } },
       { label: "Clear all filters", icon: "x", run: function () { S.filters = { decision: "", track: "", status: "", q: "" }; $("#q").value = ""; refilter(); } },
       { label: "Export applied jobs (CSV)", icon: "download", run: exportCsv },
       { label: "Toggle light / dark theme", icon: "sun", run: toggleTheme },
@@ -757,8 +758,8 @@
     if (runInfo.logging) return;
     var pick = $("#runTrack [aria-pressed=true]");
     var track = pick ? pick.getAttribute("data-track") : "";
-    // "All" is three back-to-back runs: each gets a whole invocation's request allowance instead of sharing one.
-    var tracks = track ? [track] : ["italy-remote", "sponsorship", "africa-remote", "uk-remote"];
+    // "All" is back-to-back runs, one per track: each gets a whole invocation's request allowance instead of sharing one.
+    var tracks = track ? [track] : ["italy-remote", "sponsorship", "africa-remote", "uk-remote", "italy-hybrid"];
     runInfo.logging = true; runInfo.tab = "runs"; runInfo.detail = null; runInfo.target = null; syncTabs();
     $("#runGo").disabled = true;
     $("#progress").hidden = false;

@@ -265,6 +265,10 @@ const GENERIC_WORDS = /\b(remote|anywhere|worldwide|global|distributed|home[- ]?
 // Region-wide wording that admits a candidate living in Italy.
 const REGION_WIDE = /europe|emea|\beu\b|\beea\b|worldwide|anywhere|global|italy|italia|milan|milano|rome|roma|turin|torino|bologna|florence|naples|palermo|catania/i;
 const UK_WORDS = /\b(uk|united kingdom|england|scotland|wales|britain|london|manchester|edinburgh|cardiff|belfast|bristol)\b/i;
+// Explicit Italy signal — used by italy-hybrid, which (unlike italyEligibility above) doesn't care whether the
+// role is remote/hybrid/on-site at all, only that the office/base is actually in Italy.
+const ITALY_WORDS =
+  /\b(italy|italia|italian|milan|milano|rome|roma|turin|torino|bologna|florence|firenze|naples|napoli|palermo|catania|sicily|sicilia|venice|venezia|verona|genoa|genova|bari|padova|padua|bergamo|parma)\b/i;
 
 /**
  * A reason the role can't work for a candidate living in Italy, or null. Permissive when the list is vague
@@ -278,6 +282,16 @@ export function italyEligibility(j: BoardJob): string | null {
   if (!remoteish) return "no remote option listed";
   const specific = loc.replace(GENERIC_WORDS, "").replace(/[^a-z]/gi, "");
   if (specific && !REGION_WIDE.test(loc)) return UK_WORDS.test(loc) ? "remote only within the UK" : "remote only within specific countries, none of them Italy";
+  return null;
+}
+
+/**
+ * Italy-hybrid track: unlike italyEligibility above, remote/hybrid/on-site doesn't matter at all — only that the
+ * role's office or base is actually in Italy. Strict opt-in (like ukEligibility): a bare "Remote" or "Hybrid"
+ * listing with no Italy mention doesn't qualify, since the whole point of this track is a physical Italy presence.
+ */
+export function italyHybridEligibility(j: BoardJob): string | null {
+  if (!ITALY_WORDS.test(j.location) && !ITALY_WORDS.test(j.title)) return "not an Italy-based posting";
   return null;
 }
 
@@ -335,5 +349,6 @@ export function inScope(track: Track, j: BoardJob): string | null {
   if (track === "italy-remote") return italyEligibility(j);
   if (track === "africa-remote") return africaEligibility(j);
   if (track === "uk-remote") return ukEligibility(j);
+  if (track === "italy-hybrid") return italyHybridEligibility(j);
   return sponsorshipEligibility(j);
 }

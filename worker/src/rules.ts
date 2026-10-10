@@ -19,6 +19,10 @@ const UK_ONLY = /\b(uk[- ]only|united kingdom only|remote[,\s(-]+(?:uk|united ki
 // UK-remote track: the posting must name the UK somewhere — unlike the other tracks this one does not accept a
 // bare "worldwide remote" with no UK mention, since the whole point is roles anchored to the UK.
 const UK_SIGNAL = /\b(uk|united kingdom|england|scotland|wales|britain|london|manchester|edinburgh|cardiff|belfast|bristol|leeds|glasgow|birmingham|liverpool)\b/i;
+// Italy-hybrid track: same strict-opt-in shape as UK_SIGNAL — the posting must name Italy or an Italian city
+// specifically; a bare "Europe"/"worldwide" mention isn't enough, since this track is about a physical Italy base.
+const ITALY_SIGNAL =
+  /\b(italy|italia|italian|milan|milano|rome|roma|turin|torino|bologna|florence|firenze|naples|napoli|palermo|catania|sicily|sicilia|venice|venezia|verona|genoa|genova|bari|padova|padua|bergamo|parma)\b/i;
 // Explicit denials ("we do not sponsor", "Visa Sponsorship Available: No", "unable to consider candidates who require sponsorship").
 const SPONSOR_DENIED =
   /\b(?:do(?:es)? not|don'?t|doesn'?t|cannot|can'?t|unable to|not able to|will not|won'?t|not (?:currently )?in a position to)\s+(?:offer\s+|provide\s+|consider\s+(?:candidates\s+)?(?:who\s+)?(?:require\s+)?)?(?:visa\s+|immigration\s+|employment\s+)?sponsor|sponsorship\s+available:?\s*no\b|(?:no|without)\s+(?:visa\s+|immigration\s+)?sponsorship\s+(?:is\s+)?(?:available|offered|provided)|unable to consider candidates who require|not eligible for (?:visa\s+)?sponsorship/i;
@@ -34,6 +38,12 @@ export function quickReject(track: Track, text: string, opts: { remoteBoard?: bo
     // Sponsorship must be quoted from the posting itself; no sponsorship language = cannot ever qualify.
     if (!SPONSOR_SIGNAL.test(text)) return "no visa/sponsorship/relocation language in the posting";
     if (SPONSOR_DENIED.test(text) && !SPONSOR_OFFERED.test(text)) return "the posting explicitly says it does not sponsor";
+    return null;
+  }
+  if (track === "italy-hybrid") {
+    // No remote-language requirement at all here — on-site and hybrid are the whole point of this track.
+    // What's required instead is that Italy actually be named (not just "Europe" or "worldwide").
+    if (!ITALY_SIGNAL.test(text)) return "not an Italy-based posting (no Italy/city mention)";
     return null;
   }
   // An on-site or hybrid role that never says "remote" anywhere cannot be worked from Italy (remote job boards are exempt: remote is their premise).
@@ -135,7 +145,7 @@ const APPLY_MIN = 75;
 // All four tracks floor at 50 (lowered 2026-10-04 at the candidate's explicit request, to fix near-zero output —
 // africa-remote previously floored at APPLY_MIN with no review tier at all). A 50-74 score still only reaches
 // "review", never "apply": the candidate sees and judges every borderline match, nothing is auto-applied-to.
-const FLOOR: Record<Track, number> = { "italy-remote": 50, sponsorship: 50, "africa-remote": 50, "uk-remote": 50 };
+const FLOOR: Record<Track, number> = { "italy-remote": 50, sponsorship: 50, "africa-remote": 50, "uk-remote": 50, "italy-hybrid": 50 };
 
 // Sponsorship: Australia and the UK (Scotland/Wales/England/Britain all count as the UK) carry a stricter
 // qualifying score than the rest of the sponsorship track, added 2026-10-10 at the candidate's request — these
