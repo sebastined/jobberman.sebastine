@@ -95,6 +95,14 @@ check("judge sponsorship 62 -> review", judge("sponsorship", { ...base, score: 6
 check("judge sponsorship 50 (exact floor) -> review", judge("sponsorship", { ...base, score: 50 }, posting).decision === "review");
 check("judge sponsorship 49 -> skip", judge("sponsorship", { ...base, score: 49 }, posting).decision === "skip");
 check("judge sponsorship w/ FABRICATED evidence -> skip", judge("sponsorship", { ...base, sponsorship_evidence: "We sponsor everyone, guaranteed relocation package." }, posting).decision === "skip");
+check("judge sponsorship Australia 88 -> apply", judge("sponsorship", { ...base, sponsorship_country: "Australia", score: 88 }, posting).decision === "apply");
+check("judge sponsorship Australia 80 (exact country floor) -> apply", judge("sponsorship", { ...base, sponsorship_country: "Australia", score: 80 }, posting).decision === "apply");
+check("judge sponsorship Australia 79 -> skip (no review tier for this country)", judge("sponsorship", { ...base, sponsorship_country: "Australia", score: 79 }, posting).decision === "skip");
+check("judge sponsorship Australia 62 -> skip (would have qualified on the normal 50 floor)", judge("sponsorship", { ...base, sponsorship_country: "Australia", score: 62 }, posting).decision === "skip");
+check("judge sponsorship United Kingdom 79 -> skip", judge("sponsorship", { ...base, sponsorship_country: "United Kingdom", score: 79 }, posting).decision === "skip");
+check("judge sponsorship Scotland 85 -> apply (Scotland counts as UK)", judge("sponsorship", { ...base, sponsorship_country: "Scotland", score: 85 }, posting).decision === "apply");
+check("judge sponsorship Australia hard-filter failure forces skip even at 95", judge("sponsorship", { ...base, sponsorship_country: "Australia", score: 95, hard_filter_failures: ["requires German"] }, posting).decision === "skip");
+check("judge sponsorship Australia unverified sponsorship forces skip even at 95", judge("sponsorship", { ...base, sponsorship_country: "Australia", score: 95, sponsorship_verified: false }, posting).decision === "skip");
 check("judge sponsorship model says unverified -> skip", judge("sponsorship", { ...base, sponsorship_verified: false }, posting).decision === "skip");
 check("judge africa-remote 88 -> apply", judge("africa-remote", base, posting).decision === "apply");
 check("judge africa-remote 75 (exact apply-min) -> apply", judge("africa-remote", { ...base, score: 75 }, posting).decision === "apply");

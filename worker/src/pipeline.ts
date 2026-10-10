@@ -76,7 +76,9 @@ const SPONSOR_ROLES = [
   '"security architect"',
 ];
 // "" = no country word; the rest are the target countries (Scotland/Wales fall under the United Kingdom).
-const SPONSOR_COUNTRIES = ["", '"United States"', "Canada", "Ireland", '"United Kingdom"', "Germany", "France", "Poland", "Portugal", "Estonia", "Lithuania", "Czechia", "Hungary"];
+// Australia and Finland added 2026-10-10 at the candidate's request; Australia/UK carry a stricter qualifying
+// score (src/rules.ts COUNTRY_FLOOR) since those searches turn up many more irrelevant/noisy postings.
+const SPONSOR_COUNTRIES = ["", '"United States"', "Canada", "Ireland", '"United Kingdom"', "Germany", "France", "Poland", "Portugal", "Estonia", "Lithuania", "Czechia", "Hungary", "Finland", "Australia"];
 const SPONSOR_PLATFORMS = [
   "(site:jobs.lever.co OR site:jobs.eu.lever.co)",
   "(site:job-boards.greenhouse.io OR site:boards.greenhouse.io)",

@@ -49,7 +49,10 @@ A second track for roles the candidate would relocate for (not remote-from-Italy
 seniority range, and candidate facts as above, but:
 - Eligible countries (job must be based in / sponsor relocation to one of these): USA, Canada, UK (Scotland
   or Wales specifically — treat any UK-wide-eligible posting as qualifying unless it excludes Scotland/Wales),
-  Ireland, France, Estonia, Lithuania, Czechia, Hungary, Germany, Portugal, Poland.
+  Ireland, France, Estonia, Lithuania, Czechia, Hungary, Germany, Portugal, Poland, Finland, Australia.
+- Australia and UK (England/Scotland/Wales/Britain) carry a stricter qualifying score than the rest of this
+  track: 80+, no lower tier — report sponsorship_country precisely (e.g. "Australia", "United Kingdom",
+  "Scotland") so this is applied to the right postings.
 - Language: English-speaking role only, even if the country isn't. A posting requiring conversational/
   professional fluency in the local language fails this filter.
 - Sponsorship must be 100% VERIFIED from the primary source (the employer's own posting or official careers
@@ -109,7 +112,7 @@ families, seniority range, and candidate facts as above, but:
 All four tracks share the same score bands: apply if score >= 75 and no hard-filter failure; review if
 score 50-74, or a high score with important "unclear" fields; skip if score < 50 or any hard-filter failure.
 - sponsorship track additionally requires sponsorship verified from the primary source, or it skips regardless
-  of score.
+  of score; for Australia/UK specifically, apply if score >= 80, otherwise skip (no review tier for those two).
 - uk-remote track: remember a missing UK right-to-work is NOT a hard-filter failure on this track (see above) —
   score and decide normally around that fact, don't let it alone force a skip.
 

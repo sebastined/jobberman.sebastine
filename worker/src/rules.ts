@@ -137,6 +137,13 @@ const APPLY_MIN = 75;
 // "review", never "apply": the candidate sees and judges every borderline match, nothing is auto-applied-to.
 const FLOOR: Record<Track, number> = { "italy-remote": 50, sponsorship: 50, "africa-remote": 50, "uk-remote": 50 };
 
+// Sponsorship: Australia and the UK (Scotland/Wales/England/Britain all count as the UK) carry a stricter
+// qualifying score than the rest of the sponsorship track, added 2026-10-10 at the candidate's request — these
+// two searches turn up a lot more noise than the others. No review tier below it, same shape as africa-remote's
+// old (pre-2026-10-04) floor: a sponsorship posting targeting Australia/UK either clears 80 or is skipped.
+const COUNTRY_STRICT_MIN = 80;
+const COUNTRY_STRICT = /australia|united kingdom|\buk\b|scotland|wales|england|britain/i;
+
 export interface Judged {
   result: ScreenResult;
   decision: Decision;
@@ -158,6 +165,8 @@ export function judge(track: Track, result: ScreenResult, postingText: string): 
     decision = "skip";
   } else if (track === "sponsorship" && !sponsorshipVerified) {
     decision = "skip";
+  } else if (track === "sponsorship" && COUNTRY_STRICT.test(result.sponsorship_country || "")) {
+    decision = result.score >= COUNTRY_STRICT_MIN ? "apply" : "skip";
   } else if (result.score >= APPLY_MIN) {
     decision = "apply";
   } else if (result.score >= FLOOR[track]) {

@@ -14,11 +14,13 @@ ordinary Cloudflare networking with its own API billing.
 Four tracks share the same sources and rubric (`candidate-profile.md` / `src/profile.ts`), differing only in location
 eligibility and (sponsorship) verification: **italy-remote** (remote roles allowing Italy residency), **sponsorship**
 (relocation with 100%-verified employer sponsorship to USA/Canada/UK/Ireland/France/Estonia/Lithuania/Czechia/Hungary/
-Germany/Portugal/Poland), **africa-remote** (fully-remote roles open to Nigeria, Ghana, South Africa, or Egypt, no
-sponsorship needed), and **uk-remote** (fully-remote roles anchored to the UK, captured whether or not they require
-UK right-to-work — the model reports that up front rather than filtering on it). All four share the same floor
-(score 50, lowered from a per-track 55-75 split on 2026-10-04 after africa-remote/uk-remote ran for days with
-near-zero output); 50-74 is "review", 75+ is "apply", nothing is auto-applied-to either way.
+Germany/Portugal/Poland/Finland/Australia), **africa-remote** (fully-remote roles open to Nigeria, Ghana, South Africa,
+or Egypt, no sponsorship needed), and **uk-remote** (fully-remote roles anchored to the UK, captured whether or not
+they require UK right-to-work — the model reports that up front rather than filtering on it). All four share the same
+floor (score 50, lowered from a per-track 55-75 split on 2026-10-04 after africa-remote/uk-remote ran for days with
+near-zero output); 50-74 is "review", 75+ is "apply", nothing is auto-applied-to either way — except sponsorship
+postings targeting Australia or the UK, which need 80+ with no review tier (added 2026-10-10, those two searches
+are noisier than the rest).
 
 Deployed to the Cloudflare account **"Mr Sebastine"** (where the `sebastine.com` zone lives) as the custom domain
 `jobberman.sebastine.com` (`routes` in `wrangler.jsonc`; `account_id` is pinned there because the API token can see two accounts).
