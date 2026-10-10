@@ -6,7 +6,6 @@ import { braveSearch, fetchPosting, type Fetched } from "./sources";
 import { pickFeeds, type FeedItem } from "./feeds";
 import { companyMatches, isResolvable, parseBoardTitle, parseLinkedInTitle, roleMatches, searchableRole, type Lead } from "./leads";
 import { screenPosting } from "./claude";
-import { screenPostingDeepSeek } from "./deepseek";
 import { freshnessRank, hintRank, judge, quickReject, titleTriage } from "./rules";
 import { INDEED_BOARD, INFOJOBS_BOARD, LINKEDIN_BOARD, SUBITO_BOARD } from "./boards";
 import { errorMessage, logError, logWarn } from "./log";
@@ -186,10 +185,10 @@ export interface RunOptions {
   /**
    * Weekend-only backlog-clearing mode (src/index.ts scheduled()): skips search/feeds/leads entirely and
    * spends the whole budget crawling companies, deepest-stale first, from this track's full pool — not just
-   * the handful a weekday run can afford. Screens with DeepSeek instead of Claude (src/deepseek.ts), since
-   * it's far cheaper and this mode can screen a lot more postings per run. Added 2026-10-10 after diagnosing
-   * that a sponsorship-relevant company (Superhuman Platform Inc) sat uncrawled for 6+ days because its
-   * track's crawl pool (648 companies) moves slower than new postings appear at the small weekday budget.
+   * the handful a weekday run can afford. Still screens with Claude, same as a normal run. Added 2026-10-10
+   * after diagnosing that a sponsorship-relevant company (Superhuman Platform Inc) sat uncrawled for 6+ days
+   * because its track's crawl pool (648 companies) moves slower than new postings appear at the small
+   * weekday budget.
    */
   catchup?: boolean;
 }
@@ -573,7 +572,6 @@ async function runTrack(
     if (c.leadKey) pending.push({ id: c.leadKey, date_evaluated: now(), decision: "lead - resolved to an employer page", score: 0, source_url: c.leadKey, board: c.leadBoard ?? LINKEDIN_BOARD });
   };
   const claude = { apiKey: env.ANTHROPIC_API_KEY, baseUrl: env.ANTHROPIC_BASE_URL };
-  const deepseek = { apiKey: env.DEEPSEEK_API_KEY };
 
   let evaluated = 0;
   let added = 0;
@@ -656,7 +654,7 @@ async function runTrack(
       budget.take();
       let screened;
       try {
-        screened = catchup ? await screenPostingDeepSeek(deepseek, track, c.url, fetched.text) : await screenPosting(claude, track, c.url, fetched.text);
+        screened = await screenPosting(claude, track, c.url, fetched.text);
         consecutiveErrors = 0;
       } catch (err) {
         if (err instanceof FatalApiError) throw err;
@@ -724,7 +722,7 @@ async function runTrack(
   if (budgetHit) notes.push(`${track}: subrequest budget exhausted`);
 
   notes.push(
-    `${track}${catchup ? " [deep catchup, DeepSeek]" : ""}: ${plan.searches} board searches (${stats.hits} hits)` +
+    `${track}${catchup ? " [deep catchup]" : ""}: ${plan.searches} board searches (${stats.hits} hits)` +
       (plan.feeds ? ` + ${plan.feeds} public feeds (${stats.feedItems} items)` : "") +
       ` + ${stats.leads} board leads (${stats.resolved} resolved to employer pages)` +
       ` + ${stats.crawled} company boards crawled (${stats.crawlRoles} open roles → ${stats.crawlInScope} in scope, ${stats.crawlFiltered} more dropped on their text; the lists ruled out ${stats.oracleDead} closed and ${stats.oracleOut} ineligible search hits without a fetch)` +

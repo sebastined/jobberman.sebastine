@@ -5,9 +5,9 @@ Cloudflare Worker that replaces the old Claude Code scheduled routine + Artifact
 - **Cron Triggers** run the discover → crawl → verify → screen pipeline (Berlin 8am/9am/9pm/10pm, Mon–Fri).
   `:00` screens the Italy-remote track, `:15` africa-remote, `:30` sponsorship, `:45` uk-remote, `:50` italy-hybrid
   (all 5 of the free plan's cron-trigger slots, none spare). The `:50` trigger also fires on weekends — otherwise
-  dead time — running a crawl-only "deep catchup" pass instead (rotates across all 5 tracks, screens with
-  DeepSeek instead of Claude since it's cheap enough to clear a much bigger backlog with). Added 2026-10-10
-  after a confirmed sponsorship-relevant company sat uncrawled for 6+ days — its track's 648-company crawl pool
+  dead time — running a crawl-only "deep catchup" pass instead (rotates across all 5 tracks, a much bigger
+  crawl cap than a weekday run can afford, still screened with Claude). Added 2026-10-10 after a confirmed
+  sponsorship-relevant company sat uncrawled for 6+ days — its track's 648-company crawl pool
   was moving slower than the weekday budget could keep up with.
 - **D1** stores `postings` (the tracker), `seen` (every posting ever judged, for dedup), `runs` (one row per fire, with its event log) and `companies` (job boards to crawl).
 - A **static UI** (`public/`) talks to a small authenticated JSON API. Board + list views, drag-and-drop status changes with
@@ -83,7 +83,6 @@ npx wrangler d1 execute jobberman --remote --file=./seed-seen.sql   # dedup hist
 npx wrangler secret put ANTHROPIC_API_KEY         # console.anthropic.com — needs prepaid credit
 npx wrangler secret put BRAVE_SEARCH_API_KEY      # brave.com/search/api — free tier is plenty
 npx wrangler secret put TRACKER_TOKEN             # the access key for the UI/API (long random string)
-npx wrangler secret put DEEPSEEK_API_KEY          # platform.deepseek.com — weekend "deep catchup" runs only
 npm run deploy
 ```
 

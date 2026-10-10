@@ -31,11 +31,11 @@ export default {
   //
   // The :50 slot additionally fires on Sat/Sun (wrangler.jsonc: "* * *" instead of "* * 1-5" for that one
   // trigger) — weekends are otherwise fully idle (cron is Mon-Fri everywhere else), so that idle time runs a
-  // "deep catchup" pass instead of italy-hybrid: crawl-only, deepest-stale-company-first, screened with
-  // DeepSeek (src/deepseek.ts) instead of Claude since it's cheap enough to clear a much bigger backlog with.
-  // Rotates across all 5 tracks over the 8 weekend firings so every track's crawl pool gets extra attention,
-  // not just one. Added 2026-10-10 after Superhuman Platform Inc (a confirmed sponsorship-relevant company)
-  // sat uncrawled for 6+ days — see commit message / SPEC notes for the full diagnosis.
+  // "deep catchup" pass instead of italy-hybrid: crawl-only, deepest-stale-company-first, a much bigger crawl
+  // cap than a weekday run can afford, still screened with Claude. Rotates across all 5 tracks over the 8
+  // weekend firings so every track's crawl pool gets extra attention, not just one. Added 2026-10-10 after
+  // Superhuman Platform Inc (a confirmed sponsorship-relevant company) sat uncrawled for 6+ days — see commit
+  // message / SPEC notes for the full diagnosis.
   // The run is awaited (not waitUntil'd) so a failure shows up as a failed invocation instead of a silent success.
   async scheduled(controller, env): Promise<void> {
     const MINUTE_TRACK: Record<string, Track> = { "0": "italy-remote", "15": "africa-remote", "30": "sponsorship", "45": "uk-remote", "50": "italy-hybrid" };
