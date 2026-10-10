@@ -3,7 +3,7 @@
 import { canonicalUrl, classifyJobUrl } from "../src/canon";
 import { evidenceInText, freshnessRank, hintRank, judge, quickReject, titleTriage } from "../src/rules";
 import { htmlToText } from "../src/sources";
-import { isResolvable, parseLinkedInTitle, roleMatches, companyMatches, searchableRole } from "../src/leads";
+import { isResolvable, parseBoardTitle, parseLinkedInTitle, roleMatches, companyMatches, searchableRole } from "../src/leads";
 import { pickQueries } from "../src/pipeline";
 import { africaEligibility, inScope, italyEligibility, italyHybridEligibility, sponsorshipEligibility, ukEligibility, type BoardJob } from "../src/crawl";
 import type { ScreenResult } from "../src/types";
@@ -163,6 +163,13 @@ check("role match: generic 'Support Engineer' vs security role refused", !roleMa
 check("company match: slug", companyMatches("Grafana Labs", "grafanalabs", ""));
 check("company match: workable slug suffix", companyMatches("Gatekeeper", "gatekeeper-3", ""));
 check("company match: unrelated company refused", !companyMatches("Pencil", "acme", "Security Engineer at Acme"));
+
+// ---- generic board leads (Indeed/InfoJobs/Subito): parsing ----
+check("board lead: pipe-delimited 'Role | Company | Location'", eq(parseBoardTitle("Security Engineer | Acme Corp | Milano"), { role: "Security Engineer", company: "Acme Corp" }));
+check("board lead: pipe-delimited rejects a work-mode as the company", parseBoardTitle("Security Engineer | Remote | Milano")?.company === "");
+check("board lead: Italian 'Role a Location presso Company'", eq(parseBoardTitle("Addetto alle vendite a Milano presso Esselunga"), { role: "Addetto alle vendite", company: "Esselunga" }));
+check("board lead: falls back to the dash/at patterns for a plain title", parseBoardTitle("Senior Security Engineer - Remote EMEA at Aircall")?.company === "Aircall");
+check("board lead: too short returns null", parseBoardTitle("Job") === null);
 check("company match: via the hit's own text", companyMatches("Aircall", "opaque-slug-9", "Senior Security Engineer at Aircall | Lever"));
 
 // ---- title triage / ranking ----

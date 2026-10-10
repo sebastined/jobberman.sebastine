@@ -1,5 +1,5 @@
 import type { BoardStat, Posting, RunEvent, RunRow, SourceKind, Status, Track } from "./types";
-import { LINKEDIN_BOARD } from "./boards";
+import { INDEED_BOARD, INFOJOBS_BOARD, LINKEDIN_BOARD, SUBITO_BOARD } from "./boards";
 import { classifyJobUrl, type Ats } from "./canon";
 import { CRAWLABLE } from "./crawl";
 
@@ -145,9 +145,13 @@ export async function trackerCountsByBoard(env: Env): Promise<Record<string, num
   const { results } = await env.DB.prepare("SELECT source_board AS board, COUNT(*) AS n FROM postings WHERE source_board IS NOT NULL GROUP BY source_board").all<{ board: string; n: number }>();
   const out: Record<string, number> = {};
   for (const r of results) out[r.board] = r.n;
-  // Roles reached through a LinkedIn lead are filed under their employer's job system; count them here too.
-  const li = await env.DB.prepare("SELECT COUNT(*) AS n FROM postings WHERE source_kind = 'linkedin'").first<{ n: number }>();
-  out[LINKEDIN_BOARD] = li?.n ?? 0;
+  // Roles reached through a lead (LinkedIn, Indeed, InfoJobs, Subito) are filed under their employer's job
+  // system above; count them again here, attributed to the lead board itself.
+  const LEAD_BOARD: Record<string, string> = { linkedin: LINKEDIN_BOARD, indeed: INDEED_BOARD, infojobs: INFOJOBS_BOARD, subito: SUBITO_BOARD };
+  const { results: leadCounts } = await env.DB.prepare(
+    "SELECT source_kind AS kind, COUNT(*) AS n FROM postings WHERE source_kind IN ('linkedin','indeed','infojobs','subito') GROUP BY source_kind",
+  ).all<{ kind: string; n: number }>();
+  for (const r of leadCounts) out[LEAD_BOARD[r.kind]] = r.n;
   return out;
 }
 

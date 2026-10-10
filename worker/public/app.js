@@ -349,17 +349,21 @@
   function statusPill(d) {
     return '<span class="pill status" style="--c:' + STATUS_COLOR[d.status] + '"><i class="dot"></i>' + esc(d.status) + "</span>";
   }
-  // Where the posting text came from. Employer pages are the primary source; board listings and LinkedIn leads are labelled as such.
+  // Where the posting text came from. Employer pages are the primary source; board listings and leads (LinkedIn,
+  // Indeed, InfoJobs, Subito) are labelled as such.
+  var LEAD_KIND_LABEL = { linkedin: "LinkedIn", indeed: "Indeed", infojobs: "InfoJobs", subito: "Subito" };
   function srcBadge(d) {
     if (!d.source_board) return "";
     var b = esc(d.source_board);
-    if (d.source_kind === "linkedin") return '<span class="src li" title="Found through a public LinkedIn listing, then verified live on the employer\'s own ' + b + ' page">via LinkedIn · ' + b + "</span>";
+    var lead = LEAD_KIND_LABEL[d.source_kind];
+    if (lead) return '<span class="src li" title="Found through a public ' + lead + ' listing, then verified live on the employer\'s own ' + b + ' page">via ' + lead + " · " + b + "</span>";
     if (d.source_kind === "board") return '<span class="src bd" title="Listed on the ' + b + ' job board (fetched live from the board, not the employer\'s own page)">' + b + " · board listing</span>";
     return '<span class="src" title="Verified live on the employer\'s own ' + b + ' page">' + b + "</span>";
   }
   function srcNote(d) {
     if (!d.source_board) return "";
-    if (d.source_kind === "linkedin") return "Found via a public LinkedIn listing; verified live on the employer's own " + d.source_board + " page";
+    var lead = LEAD_KIND_LABEL[d.source_kind];
+    if (lead) return "Found via a public " + lead + " listing; verified live on the employer's own " + d.source_board + " page";
     if (d.source_kind === "board") return d.source_board + " job board listing (fetched live from the board, not the employer's own page)";
     return "Employer's own " + d.source_board + " page (fetched live)";
   }
@@ -695,7 +699,7 @@
       var groups = [
         { k: "employer", title: "Employer job systems", sub: "Each posting is fetched live from the employer's own page — the primary source." },
         { k: "public", title: "Public job boards", sub: "Listings fetched live from the board itself. Italy-remote track only, labelled as board listings." },
-        { k: "linkedin", title: "LinkedIn", sub: "Never fetched or scraped. Roles LinkedIn lists publicly are looked up on the employer's own job system and only counted once verified there." },
+        { k: "linkedin", title: "Leads (LinkedIn, Indeed, InfoJobs, Subito)", sub: "Never fetched or scraped. Roles these boards list publicly are looked up on the employer's own job system and only counted once verified there." },
       ];
       var tot = boards.reduce(function (a, b) { a.checked += b.checked; a.kept += b.in_tracker; return a; }, { checked: 0, kept: 0 });
       var html = '<p class="boards-sum">' + boards.length + " sources · <b>" + tot.checked + "</b> postings checked so far · <b>" + tot.kept + "</b> in the tracker. None of them needs a sign-in." + (r.companies ? " The pipeline knows <b>" + r.companies.known + "</b> company job boards (<b>" + r.companies.crawled + "</b> crawled so far, <b>" + r.companies.with_postings + "</b> have produced a tracker entry) and re-reads their live job lists each run." : "") + "</p>";
@@ -728,7 +732,7 @@
     switch (e.type) {
       case "start": logLine("run", "START", "Run #" + e.run_id + " · " + esc(e.tracks.join(" + "))); break;
       case "search": {
-        var sl = e.purpose === "linkedin" ? "LINKEDIN" : e.purpose === "resolve" ? "LOOKUP" : "SEARCH";
+        var sl = e.purpose === "lead" ? "LEAD" : e.purpose === "resolve" ? "LOOKUP" : "SEARCH";
         logLine("search", sl, "<b>" + e.hits + "</b> hits <span class=\"dim\">· " + esc(e.query) + "</span>");
         break;
       }

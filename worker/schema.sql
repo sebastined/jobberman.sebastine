@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS postings (
   tailored_cv_url       TEXT,
   tailored_cv_filename  TEXT,
   source_board          TEXT,                                  -- e.g. Greenhouse, Workday, RemoteOK
-  source_kind           TEXT,                                  -- 'employer' | 'board' | 'linkedin'
+  source_kind           TEXT,                                  -- 'employer' | 'board' | 'linkedin' | 'indeed' | 'infojobs' | 'subito'
   created_at            TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
 );

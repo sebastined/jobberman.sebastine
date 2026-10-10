@@ -36,6 +36,28 @@ export function parseLinkedInTitle(rawTitle: string): Lead | null {
   return { role: t, company: "" };
 }
 
+/**
+ * Generic job-board search-result titles (Indeed, InfoJobs.it, Subito.it) — read the same way as LinkedIn
+ * above: only the title/snippet a search engine shows, the board page itself is never fetched. These sites'
+ * title conventions are less uniform than LinkedIn's, so this tries a couple of extra delimiter shapes
+ *   "Security Engineer | Acme Corp | Milano"        (pipe-delimited, common on Indeed/InfoJobs)
+ *   "Addetto alle vendite a Milano presso Acme Srl"  (Italian "presso" = "with/at")
+ * before falling back to parseLinkedInTitle's hiring/at/dash patterns, which already cover the rest
+ * ("Role - Company", "Role at Company") generically enough to apply here too.
+ */
+export function parseBoardTitle(rawTitle: string): Lead | null {
+  const t = clean(rawTitle);
+  if (t.length < 8) return null;
+  let m = t.match(/^(.+?)\s+presso\s+([^|]+?)(?:\s*[|].*)?$/i);
+  if (m) return { role: clean(m[1].replace(/\s+a\s+[A-ZÀ-Ý][\wà-ÿ'\s]*$/u, "")), company: clean(m[2]) };
+  const parts = t.split(/\s*\|\s*/).filter(Boolean);
+  if (parts.length >= 2) {
+    const [role, company] = parts;
+    if (company.length < 60 && !/remote|hybrid|ibrido|full[- ]?time|part[- ]?time|\d+\s*(ore|hours)/i.test(company)) return { role: clean(role), company: clean(company) };
+  }
+  return parseLinkedInTitle(rawTitle);
+}
+
 /** Recruiters and job-repost sites that list roles on LinkedIn: not employers, so looking them up on an employer's job system is pointless. */
 const NOT_EMPLOYERS =
   /(recruit|staffing|headhunt|search partners?|talent (?:acquisition|solutions|partners))|^(hire ?feed|hired|onhires|jobs ?ai|jobgether|talent\.com|lensa|dice|adzuna|jooble|randstad|adecco|manpower|hays|michael page|page personnel|robert half|harnham|experis|modis|nigel frank|jefferson frank|sthree|computer futures|client server|harvey nash|la fosse|spectrum it|cathcart|lorien|huxley|morgan mckinley|jobs via dice|hire ?right|talentbridge|s\.?i\.? systems)\b/i;

@@ -7,6 +7,9 @@ import { FEEDS } from "./feeds";
 import type { Track } from "./types";
 
 export const LINKEDIN_BOARD = "LinkedIn (leads)";
+export const INDEED_BOARD = "Indeed (leads)";
+export const INFOJOBS_BOARD = "InfoJobs (leads)";
+export const SUBITO_BOARD = "Subito (leads)";
 
 export interface BoardInfo {
   name: string;
@@ -15,7 +18,8 @@ export interface BoardInfo {
   how: string;
 }
 
-const ALL_TRACKS: Track[] = ["italy-remote", "sponsorship", "africa-remote", "uk-remote"];
+const ALL_TRACKS: Track[] = ["italy-remote", "sponsorship", "africa-remote", "uk-remote", "italy-hybrid"];
+const ITALY_TRACKS: Track[] = ["italy-remote", "italy-hybrid"];
 
 const ATS_HOW: Record<Ats, string> = {
   greenhouse: "employer's Greenhouse job API, fetched live",
@@ -42,5 +46,23 @@ export const BOARD_CATALOG: BoardInfo[] = [
     group: "linkedin",
     tracks: ALL_TRACKS,
     how: "roles LinkedIn lists publicly are read from search results only, then looked up on the employer's own job system and verified there; LinkedIn itself is never fetched",
+  },
+  {
+    name: INDEED_BOARD,
+    group: "linkedin",
+    tracks: ITALY_TRACKS,
+    how: "roles Indeed lists publicly are read from search results only, then looked up on the employer's own job system and verified there; Indeed itself is never fetched (its robots.txt disallows crawling job pages for this bot)",
+  },
+  {
+    name: INFOJOBS_BOARD,
+    group: "linkedin",
+    tracks: ITALY_TRACKS,
+    how: "roles InfoJobs.it lists publicly are read from search results only, then looked up on the employer's own job system and verified there; InfoJobs itself is never fetched",
+  },
+  {
+    name: SUBITO_BOARD,
+    group: "linkedin",
+    tracks: ITALY_TRACKS,
+    how: "roles Subito.it lists publicly are read from search results only, then looked up on the employer's own job system and verified there; Subito itself is never fetched (and often lists no company name, so many leads won't resolve)",
   },
 ];

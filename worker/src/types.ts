@@ -2,9 +2,10 @@ export type Track = "italy-remote" | "sponsorship" | "africa-remote" | "uk-remot
 export type Decision = "apply" | "review" | "skip";
 /**
  * Where a posting's text came from: the employer's own job page found by search ("employer"), a public job
- * board's listing ("board"), or an employer page reached through a LinkedIn-listed role ("linkedin").
+ * board's listing ("board"), or an employer page reached through a role listed on a lead board (LinkedIn,
+ * Indeed, InfoJobs, Subito) — the lead board's own page is never fetched, only its search-result snippet.
  */
-export type SourceKind = "employer" | "board" | "linkedin";
+export type SourceKind = "employer" | "board" | "linkedin" | "indeed" | "infojobs" | "subito";
 export type Status =
   | "Pending Review"
   | "Approved to Apply"
@@ -98,7 +99,7 @@ export interface BoardStat {
 /** Streamed to the UI (NDJSON) during a manual run; also drives the run console. */
 export type RunEvent =
   | { type: "start"; run_id: number; tracks: Track[] }
-  | { type: "search"; track: Track; query: string; hits: number; purpose?: "discover" | "linkedin" | "resolve" }
+  | { type: "search"; track: Track; query: string; hits: number; purpose?: "discover" | "lead" | "resolve" }
   | { type: "feed"; track: Track; board: string; items: number }
   | { type: "crawl"; track: Track; board: string; company: string; jobs: number; in_scope: number; ok: boolean }
   | { type: "lead"; track: Track; role: string; company: string; url?: string; board?: string }

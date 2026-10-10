@@ -4,10 +4,10 @@ import { BOARD_NAMES, canonicalUrl, classifyJobUrl, type Ats, type JobUrlInfo } 
 import { CRAWLABLE, crawlBoard, inScope, type BoardJob } from "./crawl";
 import { braveSearch, fetchPosting, type Fetched } from "./sources";
 import { pickFeeds, type FeedItem } from "./feeds";
-import { companyMatches, isResolvable, parseLinkedInTitle, roleMatches, searchableRole, type Lead } from "./leads";
+import { companyMatches, isResolvable, parseBoardTitle, parseLinkedInTitle, roleMatches, searchableRole, type Lead } from "./leads";
 import { screenPosting } from "./claude";
 import { freshnessRank, hintRank, judge, quickReject, titleTriage } from "./rules";
-import { LINKEDIN_BOARD } from "./boards";
+import { INDEED_BOARD, INFOJOBS_BOARD, LINKEDIN_BOARD, SUBITO_BOARD } from "./boards";
 import { errorMessage, logError, logWarn } from "./log";
 import { boardStats, bumpCompanyAdded, companyKey, cleanupStaleRuns, finishRun, getKnownUrls, insertPosting, markCompanyAfricaEligible, markCompanySponsors, markCompanyUkEligible, markCrawled, pickCompaniesToCrawl, postingExists, saveSeenBatch, seedCompaniesIfEmpty, startRun, upsertCompanies, type CompanyRow, type SeenRow } from "./db";
 
@@ -117,10 +117,40 @@ const ITALY_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => ITALY_REGIONS.map((g) => `s
 const SPONSORSHIP_LEAD_QUERIES = SPONSOR_ROLES.flatMap((r) => SPONSOR_COUNTRIES.filter(Boolean).map((c) => `site:linkedin.com/jobs/view ${r} "visa sponsorship" ${c}`));
 const AFRICA_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => AFRICA_REGIONS.map((g) => `site:linkedin.com/jobs/view ${r} ${g}`));
 const UK_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => UK_REGIONS.map((g) => `site:linkedin.com/jobs/view ${r} ${g}`));
+
+// Italy-specific lead boards, added 2026-10-10 at the candidate's request ("heavily emphasise" these for Italy
+// jobs): same read-only-the-snippet, resolve-on-the-employer's-own-ATS pattern as LinkedIn above — these sites'
+// own pages are never fetched (Indeed's robots.txt disallows it for this bot; InfoJobs/Subito are unreachable
+// from this environment to verify, so the same conservative no-direct-fetch rule applies to them too). Mixed
+// into italy-remote/italy-hybrid's own lead-query pools (not the other three tracks — these are Italy boards).
+const INDEED_IT_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => ITALY_REGIONS.map((g) => `site:it.indeed.com ${r} ${g}`));
+const INFOJOBS_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => ITALY_REGIONS.map((g) => `site:infojobs.it ${r} ${g}`));
+const SUBITO_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => ITALY_REGIONS.map((g) => `site:subito.it ${r} ${g}`));
 const ITALY_HYBRID_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => ITALY_HYBRID_REGIONS.map((g) => `site:linkedin.com/jobs/view ${r} ${g}`));
+const INDEED_IT_HYBRID_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => ITALY_HYBRID_REGIONS.map((g) => `site:it.indeed.com ${r} ${g}`));
+const INFOJOBS_HYBRID_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => ITALY_HYBRID_REGIONS.map((g) => `site:infojobs.it ${r} ${g}`));
+const SUBITO_HYBRID_LEAD_QUERIES = ROLE_TERMS.flatMap((r) => ITALY_HYBRID_REGIONS.map((g) => `site:subito.it ${r} ${g}`));
+
+// Each entry: how to recognise a hit as belonging to this board, and how to parse its title into a lead.
+// "Heavy emphasis" is implemented two ways: these boards' queries are mixed into italy-remote/italy-hybrid's
+// own LEAD_QUERIES pools (so they show up in the rotation, not just LinkedIn), and those two tracks run more
+// lead-discovery queries per run than the others (see plan.leadQueries below).
+interface LeadSource { board: string; kind: SourceKind; urlTest: RegExp; parse: (title: string) => Lead | null }
+const LEAD_SOURCES: LeadSource[] = [
+  { board: LINKEDIN_BOARD, kind: "linkedin", urlTest: /(^|\.)linkedin\.com\/jobs\/view/i, parse: parseLinkedInTitle },
+  { board: INDEED_BOARD, kind: "indeed", urlTest: /(^|\.)indeed\.com\//i, parse: parseBoardTitle },
+  { board: INFOJOBS_BOARD, kind: "infojobs", urlTest: /(^|\.)infojobs\.it\//i, parse: parseBoardTitle },
+  { board: SUBITO_BOARD, kind: "subito", urlTest: /(^|\.)subito\.it\//i, parse: parseBoardTitle },
+];
 
 const QUERIES: Record<Track, string[]> = { "italy-remote": ITALY_QUERIES, sponsorship: SPONSORSHIP_QUERIES, "africa-remote": AFRICA_QUERIES, "uk-remote": UK_QUERIES, "italy-hybrid": ITALY_HYBRID_QUERIES };
-const LEAD_QUERIES: Record<Track, string[]> = { "italy-remote": ITALY_LEAD_QUERIES, sponsorship: SPONSORSHIP_LEAD_QUERIES, "africa-remote": AFRICA_LEAD_QUERIES, "uk-remote": UK_LEAD_QUERIES, "italy-hybrid": ITALY_HYBRID_LEAD_QUERIES };
+const LEAD_QUERIES: Record<Track, string[]> = {
+  "italy-remote": [...ITALY_LEAD_QUERIES, ...INDEED_IT_LEAD_QUERIES, ...INFOJOBS_LEAD_QUERIES, ...SUBITO_LEAD_QUERIES],
+  sponsorship: SPONSORSHIP_LEAD_QUERIES,
+  "africa-remote": AFRICA_LEAD_QUERIES,
+  "uk-remote": UK_LEAD_QUERIES,
+  "italy-hybrid": [...ITALY_HYBRID_LEAD_QUERIES, ...INDEED_IT_HYBRID_LEAD_QUERIES, ...INFOJOBS_HYBRID_LEAD_QUERIES, ...SUBITO_HYBRID_LEAD_QUERIES],
+};
 
 const RESOLVE_SITES =
   "(site:jobs.lever.co OR site:jobs.ashbyhq.com OR site:job-boards.greenhouse.io OR site:jobs.smartrecruiters.com OR site:apply.workable.com OR site:jobs.personio.com OR site:recruitee.com OR site:teamtailor.com OR site:jobs.eu.lever.co)";
@@ -232,8 +262,10 @@ interface Candidate {
   info?: JobUrlInfo;
   /** Public-board listing whose text was fetched live from the board this run. */
   feed?: FeedItem;
-  /** Set when found via a LinkedIn lead; recorded once the candidate has been judged. */
+  /** Set when found via a lead (LinkedIn, Indeed, InfoJobs, Subito); recorded once the candidate has been judged. */
   leadKey?: string;
+  /** Which lead board leadKey came from, for the seen-row bookkeeping entry closing it out. */
+  leadBoard?: string;
   /** Came from a company's own live job list: known open right now, so never a dead link. */
   crawled?: boolean;
   /** Full posting text when that job list already carried it (no per-posting fetch needed). */
@@ -260,12 +292,16 @@ async function runTrack(
 ): Promise<{ evaluated: number; added: number }> {
   const seed = opts.seed ?? Math.floor(Date.now() / (20 * 60_000));
   const italy = track === "italy-remote";
+  const italyFocused = track === "italy-remote" || track === "italy-hybrid";
   const roomy = budget.max >= 40; // a lone track gets the whole invocation; two share it
   const plan = {
     searches: italy ? (roomy ? 4 : 2) : roomy ? 3 : 2,
     feeds: italy ? (roomy ? 3 : 1) : 0,
-    leadQueries: 1,
-    leadResolutions: italy ? (roomy ? 2 : 1) : roomy ? 2 : 1,
+    // Italy-remote/italy-hybrid run 2 lead-discovery queries per run (vs 1 for the other tracks): their
+    // LEAD_QUERIES pool now mixes in Indeed/InfoJobs/Subito alongside LinkedIn, so one query a run would
+    // mostly just rotate between boards instead of actually covering more of them.
+    leadQueries: italyFocused ? 2 : 1,
+    leadResolutions: italyFocused ? (roomy ? 2 : 1) : roomy ? 2 : 1,
     crawls: roomy ? 6 : 3,
   };
 
@@ -333,25 +369,28 @@ async function runTrack(
     }
   }
 
-  // 3. LinkedIn leads: roles LinkedIn lists publicly, looked up on the employer's own job system.
+  // 3. Leads: roles a board lists publicly (LinkedIn, and for italy-remote/italy-hybrid also Indeed/InfoJobs/
+  // Subito), read only from the search result's title/snippet, then looked up on the employer's own job system.
   if (budget.left >= plan.leadQueries + plan.leadResolutions + 2) {
-    const leadQuery = pickQueries(LEAD_QUERIES[track], seed, 1)[0];
-    budget.take();
-    const hits = await braveSearch(env.BRAVE_SEARCH_API_KEY, leadQuery, 20);
-    emit({ type: "search", track, query: leadQuery.slice(0, 140), hits: hits.length, purpose: "linkedin" });
-    await sleep(BRAVE_GAP_MS);
+    const leads = new Map<string, { lead: Lead; rank: number; board: string; kind: SourceKind }>();
+    for (const leadQuery of pickQueries(LEAD_QUERIES[track], seed, plan.leadQueries)) {
+      if (!budget.take()) break;
+      const hits = await braveSearch(env.BRAVE_SEARCH_API_KEY, leadQuery, 20);
+      emit({ type: "search", track, query: leadQuery.slice(0, 140), hits: hits.length, purpose: "lead" });
+      await sleep(BRAVE_GAP_MS);
 
-    const leads = new Map<string, { lead: Lead; rank: number }>();
-    for (const h of hits) {
-      if (!/(^|\.)linkedin\.com\/jobs\/view/i.test(h.url.replace(/^https?:\/\//, ""))) continue;
-      const lead = parseLinkedInTitle(h.title);
-      if (!lead || lead.company.length < 2 || !isResolvable(lead)) continue;
-      if (titleTriage(lead.role, h.description.slice(0, 200))) {
-        stats.triaged++;
-        continue;
+      for (const h of hits) {
+        const src = LEAD_SOURCES.find((s) => s.urlTest.test(h.url.replace(/^https?:\/\//, "")));
+        if (!src) continue;
+        const lead = src.parse(h.title);
+        if (!lead || lead.company.length < 2 || !isResolvable(lead)) continue;
+        if (titleTriage(lead.role, h.description.slice(0, 200))) {
+          stats.triaged++;
+          continue;
+        }
+        const key = leadKeyOf(lead);
+        if (!leads.has(key)) leads.set(key, { lead, rank: hintRank(`${lead.role} ${h.title}`), board: src.board, kind: src.kind });
       }
-      const key = leadKeyOf(lead);
-      if (!leads.has(key)) leads.set(key, { lead, rank: hintRank(`${lead.role} ${h.title}`) });
     }
     stats.leads = leads.size;
 
@@ -362,7 +401,7 @@ async function runTrack(
       .sort((a, b) => b[1].rank - a[1].rank)
       .slice(0, plan.leadResolutions);
 
-    for (const [key, { lead }] of todo) {
+    for (const [key, { lead, board, kind }] of todo) {
       if (!budget.take()) break;
       const role = searchableRole(lead.role).replace(/"/g, "");
       const company = lead.company.replace(/"/g, "");
@@ -384,10 +423,10 @@ async function runTrack(
         stats.resolved++;
         learn(match.info);
         emit({ type: "lead", track, role: lead.role, company: lead.company, url: match.info.canonical, board: BOARD_NAMES[match.info.ats] });
-        add({ url: match.info.canonical, kind: "linkedin", board: BOARD_NAMES[match.info.ats], hint: match.title || lead.role, info: match.info, leadKey: key, rank: hintRank(lead.role) + 2 });
+        add({ url: match.info.canonical, kind, board: BOARD_NAMES[match.info.ats], hint: match.title || lead.role, info: match.info, leadKey: key, leadBoard: board, rank: hintRank(lead.role) + 2 });
       } else {
         emit({ type: "lead", track, role: lead.role, company: lead.company });
-        pending.push({ id: key, date_evaluated: now(), decision: "unverified - no employer job page found for this LinkedIn lead", score: 0, source_url: key, board: LINKEDIN_BOARD });
+        pending.push({ id: key, date_evaluated: now(), decision: `unverified - no employer job page found for this ${board} lead`, score: 0, source_url: key, board });
       }
     }
   }
@@ -473,7 +512,7 @@ async function runTrack(
     const settle = (decision: string) => {
       candidates.delete(c.url);
       pending.push({ id: c.url, date_evaluated: now(), decision, score: 0, source_url: c.url, board: c.board });
-      if (c.leadKey) pending.push({ id: c.leadKey, date_evaluated: now(), decision: "lead - resolved to an employer page", score: 0, source_url: c.leadKey, board: LINKEDIN_BOARD });
+      if (c.leadKey) pending.push({ id: c.leadKey, date_evaluated: now(), decision: "lead - resolved to an employer page", score: 0, source_url: c.leadKey, board: c.leadBoard ?? LINKEDIN_BOARD });
     };
     if (!entry) {
       settle("skip - posting no longer listed on its company's job board");
@@ -510,7 +549,7 @@ async function runTrack(
   const seenRow = (c: Candidate, decision: string, score = 0, shareVerdict = false) => {
     pending.push({ id: c.url, date_evaluated: now(), decision, score, source_url: c.url, board: c.board });
     if (shareVerdict) for (const s of c.siblings ?? []) pending.push({ id: s, date_evaluated: now(), decision: `skip - same role as ${c.url}: ${decision}`, score, source_url: s, board: c.board });
-    if (c.leadKey) pending.push({ id: c.leadKey, date_evaluated: now(), decision: "lead - resolved to an employer page", score: 0, source_url: c.leadKey, board: LINKEDIN_BOARD });
+    if (c.leadKey) pending.push({ id: c.leadKey, date_evaluated: now(), decision: "lead - resolved to an employer page", score: 0, source_url: c.leadKey, board: c.leadBoard ?? LINKEDIN_BOARD });
   };
   const claude = { apiKey: env.ANTHROPIC_API_KEY, baseUrl: env.ANTHROPIC_BASE_URL };
 
@@ -665,7 +704,7 @@ async function runTrack(
   notes.push(
     `${track}: ${plan.searches} board searches (${stats.hits} hits)` +
       (plan.feeds ? ` + ${plan.feeds} public feeds (${stats.feedItems} items)` : "") +
-      ` + ${stats.leads} LinkedIn leads (${stats.resolved} resolved to employer pages)` +
+      ` + ${stats.leads} board leads (${stats.resolved} resolved to employer pages)` +
       ` + ${stats.crawled} company boards crawled (${stats.crawlRoles} open roles → ${stats.crawlInScope} in scope, ${stats.crawlFiltered} more dropped on their text; the lists ruled out ${stats.oracleDead} closed and ${stats.oracleOut} ineligible search hits without a fetch)` +
       ` → ${all.length} candidates, ${fresh.length} new, ${stats.triaged} triaged out by title; screened ${evaluated}, added ${added}`,
   );
